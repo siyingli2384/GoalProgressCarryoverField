@@ -80,12 +80,24 @@ function getDayDifference(startDateString, endDateString) {
   return Math.floor((endDate - startDate) / 86400000);
 }
 
+function getSiteNickname() {
+  const portMap = {
+    3001: "rigid-2",
+    3002: "headstart-2",
+    3003: "rigid-1",
+    3004: "headstart-1",
+  };
+
+  return import.meta.env.VITE_SITE_NICKNAME || portMap[window.location.port] || "rigid-2";
+}
+
 function App() {
   const lastActivityAtRef = useRef(Date.now());
   const lastSyncedPayloadRef = useRef("");
   const currentLogRef = useRef(null);
-  const isHeadstartSite = ["3002", "3004"].includes(window.location.port);
-  const usesTwoModuleChallenge = ["3001", "3002"].includes(window.location.port);
+  const siteNickname = getSiteNickname();
+  const isHeadstartSite = siteNickname.startsWith("headstart");
+  const usesTwoModuleChallenge = ["rigid-2", "headstart-2"].includes(siteNickname);
   const [selectedModuleId, setSelectedModuleId] = useState(null);
   const [mode, setMode] = useState("prolific");
   const [prolificId, setProlificId] = useState(() =>
