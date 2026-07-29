@@ -717,9 +717,11 @@ function App() {
   function submitProlificId(event) {
     event.preventDefault();
 
-    if (!prolificId.trim()) return;
+    const trimmedProlificId = prolificId.trim();
 
-    localStorage.setItem(PROLIFIC_ID_STORAGE_KEY, prolificId.trim());
+    if (!trimmedProlificId) return;
+
+    localStorage.setItem(PROLIFIC_ID_STORAGE_KEY, trimmedProlificId);
     setMode("challenge");
   }
 
