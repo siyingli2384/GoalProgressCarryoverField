@@ -725,9 +725,17 @@ button:disabled {
 }
 
 @media (max-width: 900px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
   .app-shell {
     width: 100%;
-    padding: 18px 12px 32px;
+    max-width: none;
+    padding: 16px 10px 32px;
   }
 
   .hero {
@@ -807,15 +815,17 @@ button:disabled {
   }
 
   .progress-days {
-    grid-template-columns: repeat(10, 76px);
-    justify-content: start;
+    display: flex;
+    gap: 12px;
     overflow-x: auto;
-    padding: 10px 2px 12px;
+    width: 100%;
+    padding: 10px 4px 12px;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
   }
 
   .progress-day {
+    flex: 0 0 72px;
     scroll-snap-align: start;
     font-size: 0.58rem;
   }
@@ -832,11 +842,14 @@ button:disabled {
   .module-grid {
     grid-template-columns: 1fr;
     justify-items: stretch;
-    max-width: 460px;
+    width: min(100%, 460px);
     gap: 14px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .module-card {
+    width: 100%;
     max-width: none;
     min-height: 170px;
     padding: 18px;
@@ -854,6 +867,30 @@ button:disabled {
   }
 
   .controls button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-shell {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .learning-progress-card {
+    padding: 12px;
+  }
+
+  .daily-target-card {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .progress-note {
+    font-size: 0.86rem !important;
+  }
+
+  .module-grid {
     width: 100%;
   }
 }
