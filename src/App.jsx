@@ -93,17 +93,6 @@ function getSiteNickname() {
   return import.meta.env.VITE_SITE_NICKNAME || portMap[window.location.port] || "rigid-2";
 }
 
-function getUrlValue(...keys) {
-  const params = new URLSearchParams(window.location.search);
-
-  for (const key of keys) {
-    const value = params.get(key);
-    if (value) return value;
-  }
-
-  return "";
-}
-
 function App() {
   const lastActivityAtRef = useRef(Date.now());
   const lastSyncedPayloadRef = useRef("");
@@ -113,16 +102,8 @@ function App() {
   const usesTwoModuleChallenge = ["rigid-2", "headstart-2"].includes(siteNickname);
   const [selectedModuleId, setSelectedModuleId] = useState(null);
   const [mode, setMode] = useState("prolific");
-  const [prolificId, setProlificId] = useState(() =>
-    getUrlValue("prolificId", "PROLIFIC_PID", "prolific_id") ||
-    localStorage.getItem(PROLIFIC_ID_STORAGE_KEY) ||
-    ""
-  );
-  const [nickname, setNickname] = useState(() =>
-    getUrlValue("nickname", "nickName", "nick_name") ||
-    localStorage.getItem(NICKNAME_STORAGE_KEY) ||
-    ""
-  );
+  const [prolificId, setProlificId] = useState("");
+  const [nickname, setNickname] = useState("");
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [hasSeenTranslation, setHasSeenTranslation] = useState(false);
@@ -154,7 +135,6 @@ function App() {
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isCurrentQuizComplete, setIsCurrentQuizComplete] = useState(false);
   const [isSessionReady, setIsSessionReady] = useState(false);
-  const hasAutoStartedSessionRef = useRef(false);
 
   const selectedModule = modules.find((module) => module.id === selectedModuleId);
   const allWords = useMemo(() => modules.flatMap((module) => module.words), []);
@@ -452,20 +432,6 @@ function App() {
       localStorage.setItem(NICKNAME_STORAGE_KEY, nickname.trim());
     }
   }, [nickname]);
-
-  useEffect(() => {
-    const urlProlificId = getUrlValue("prolificId", "PROLIFIC_PID", "prolific_id");
-    const urlNickname = getUrlValue("nickname", "nickName", "nick_name");
-
-    if (hasAutoStartedSessionRef.current || !urlProlificId || !urlNickname) {
-      return;
-    }
-
-    hasAutoStartedSessionRef.current = true;
-    initializeParticipantSession(urlProlificId, urlNickname).catch((error) => {
-      console.error("Could not auto-start participant session:", error);
-    });
-  }, []);
 
   useEffect(() => {
     const trimmedProlificId = prolificId.trim();
