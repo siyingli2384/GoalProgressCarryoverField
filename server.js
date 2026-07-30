@@ -137,6 +137,30 @@ function normalizeActivityLogs(activityLogs) {
   return Array.isArray(activityLogs) ? activityLogs.map(normalizeActivityLog) : [];
 }
 
+function mergeBooleanMaps(previousMap = {}, incomingMap = {}) {
+  return {
+    ...previousMap,
+    ...incomingMap,
+  };
+}
+
+function mergeNumberMaps(previousMap = {}, incomingMap = {}) {
+  const mergedMap = { ...previousMap };
+
+  Object.entries(incomingMap).forEach(([key, value]) => {
+    mergedMap[key] = Math.max(Number(mergedMap[key] || 0), Number(value || 0));
+  });
+
+  return mergedMap;
+}
+
+function mergeTextMaps(previousMap = {}, incomingMap = {}) {
+  return {
+    ...previousMap,
+    ...incomingMap,
+  };
+}
+
 function mergeActivityLogs(previousLogs = [], incomingLogs = []) {
   const mergedLogs = new Map();
 
@@ -179,15 +203,26 @@ async function handleProgressPost(request, response) {
     ...previousRecord,
     prolificId,
     nickname,
-    learnedWords: payload.learnedWords || previousRecord.learnedWords || {},
-    timeUsedSeconds: Number(payload.timeUsedSeconds || 0),
-    moduleTimeSeconds:
-      payload.moduleTimeSeconds || previousRecord.moduleTimeSeconds || {},
-    moduleCompletionDates:
-      payload.moduleCompletionDates ||
-      previousRecord.moduleCompletionDates ||
-      {},
-    startedModules: payload.startedModules || previousRecord.startedModules || {},
+    learnedWords: mergeBooleanMaps(
+      previousRecord.learnedWords || {},
+      payload.learnedWords || {}
+    ),
+    timeUsedSeconds: Math.max(
+      Number(previousRecord.timeUsedSeconds || 0),
+      Number(payload.timeUsedSeconds || 0)
+    ),
+    moduleTimeSeconds: mergeNumberMaps(
+      previousRecord.moduleTimeSeconds || {},
+      payload.moduleTimeSeconds || {}
+    ),
+    moduleCompletionDates: mergeTextMaps(
+      previousRecord.moduleCompletionDates || {},
+      payload.moduleCompletionDates || {}
+    ),
+    startedModules: mergeTextMaps(
+      previousRecord.startedModules || {},
+      payload.startedModules || {}
+    ),
     activityLogs: Array.isArray(payload.activityLogs)
       ? mergeActivityLogs(previousRecord.activityLogs || [], payload.activityLogs)
       : normalizeActivityLogs(previousRecord.activityLogs || []),

@@ -149,6 +149,7 @@ function App() {
   const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isCurrentQuizComplete, setIsCurrentQuizComplete] = useState(false);
+  const [isSessionReady, setIsSessionReady] = useState(false);
   const hasAutoStartedSessionRef = useRef(false);
 
   const selectedModule = modules.find((module) => module.id === selectedModuleId);
@@ -167,7 +168,7 @@ function App() {
     const trimmedProlificId = prolificId.trim();
     const trimmedNickname = nickname.trim();
 
-    if (!trimmedProlificId || !trimmedNickname) return;
+    if (!trimmedProlificId || !trimmedNickname || !isSessionReady) return;
 
     const payload = {
       prolificId: trimmedProlificId,
@@ -218,6 +219,7 @@ function App() {
 
     const session = await startSession(trimmedProlificId, trimmedNickname);
     applySavedProgress(session.participant);
+    setIsSessionReady(true);
     setMode(session.participant?.challengeStartDate ? "home" : "challenge");
   }
 
@@ -449,7 +451,7 @@ function App() {
     const trimmedProlificId = prolificId.trim();
     const trimmedNickname = nickname.trim();
 
-    if (!trimmedProlificId || !trimmedNickname) return undefined;
+    if (!trimmedProlificId || !trimmedNickname || !isSessionReady) return undefined;
 
     const payload = {
       prolificId: trimmedProlificId,
@@ -477,6 +479,7 @@ function App() {
   }, [
     prolificId,
     nickname,
+    isSessionReady,
     learnedWords,
     timeUsedSeconds,
     moduleTimeSeconds,
@@ -491,7 +494,7 @@ function App() {
       const trimmedProlificId = prolificId.trim();
       const trimmedNickname = nickname.trim();
 
-      if (!trimmedProlificId || !trimmedNickname) return;
+      if (!trimmedProlificId || !trimmedNickname || !isSessionReady) return;
 
       saveProgress(
         {
@@ -525,6 +528,7 @@ function App() {
   }, [
     prolificId,
     nickname,
+    isSessionReady,
     learnedWords,
     timeUsedSeconds,
     moduleTimeSeconds,
