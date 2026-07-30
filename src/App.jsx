@@ -13,8 +13,6 @@ const MODULE_CARD_INDEX_STORAGE_KEY = "spanishLearning.moduleCardIndexes";
 const MODULE_COMPLETION_STORAGE_KEY = "spanishLearning.moduleCompletionDates";
 const STARTED_MODULE_STORAGE_KEY = "spanishLearning.startedModules";
 const CHALLENGE_START_STORAGE_KEY = "spanishLearning.challengeStartDate";
-const PROLIFIC_ID_STORAGE_KEY = "spanishLearning.prolificId";
-const NICKNAME_STORAGE_KEY = "spanishLearning.nickname";
 const RESET_DATES_STORAGE_KEY = "spanishLearning.lastResetDates";
 const ACTIVITY_LOG_STORAGE_KEY = "spanishLearning.activityLogs";
 const INACTIVITY_LIMIT_MS = 30000;
@@ -199,9 +197,6 @@ function App() {
     const trimmedNickname = nicknameValue.trim();
 
     if (!trimmedProlificId || !trimmedNickname) return;
-
-    localStorage.setItem(PROLIFIC_ID_STORAGE_KEY, trimmedProlificId);
-    localStorage.setItem(NICKNAME_STORAGE_KEY, trimmedNickname);
 
     const session = await startSession(trimmedProlificId, trimmedNickname);
     applySavedProgress(session.participant);
@@ -420,18 +415,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem(ACTIVITY_LOG_STORAGE_KEY, JSON.stringify(activityLogs));
   }, [activityLogs]);
-
-  useEffect(() => {
-    if (prolificId.trim()) {
-      localStorage.setItem(PROLIFIC_ID_STORAGE_KEY, prolificId.trim());
-    }
-  }, [prolificId]);
-
-  useEffect(() => {
-    if (nickname.trim()) {
-      localStorage.setItem(NICKNAME_STORAGE_KEY, nickname.trim());
-    }
-  }, [nickname]);
 
   useEffect(() => {
     const trimmedProlificId = prolificId.trim();
@@ -866,7 +849,11 @@ function App() {
         <section className="leading-page prolific-page">
           <span className="eyebrow">Spanish Learning</span>
           <h1 className="leading-title">Enter your study details</h1>
-          <form className="prolific-form" onSubmit={submitProlificId}>
+          <form
+            className="prolific-form"
+            onSubmit={submitProlificId}
+            autoComplete="off"
+          >
             <label htmlFor="prolific-id">Prolific ID</label>
             <input
               id="prolific-id"
@@ -874,7 +861,9 @@ function App() {
               type="text"
               value={prolificId}
               onChange={(event) => setProlificId(event.target.value)}
-              autoComplete="off"
+              autoComplete="new-password"
+              data-lpignore="true"
+              data-form-type="other"
               required
             />
             <label htmlFor="nickname">Nickname</label>
@@ -884,7 +873,9 @@ function App() {
               type="text"
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
-              autoComplete="off"
+              autoComplete="new-password"
+              data-lpignore="true"
+              data-form-type="other"
               required
             />
             <button
