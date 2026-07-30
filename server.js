@@ -97,6 +97,7 @@ function summarizeProgress(record) {
     completedModules,
     timeUsedSeconds: Number(record.timeUsedSeconds || moduleTimeTotalSeconds || 0),
     moduleTimeSeconds,
+    moduleCardIndexes: record.moduleCardIndexes || {},
     moduleCompletionDates,
     startedModules: record.startedModules || {},
     activityLogs: normalizeActivityLogs(record.activityLogs || []),
@@ -112,6 +113,7 @@ function createBlankParticipantRecord(prolificId, nickname) {
     learnedWords: {},
     timeUsedSeconds: 0,
     moduleTimeSeconds: {},
+    moduleCardIndexes: {},
     moduleCompletionDates: {},
     startedModules: {},
     activityLogs: [],
@@ -152,6 +154,15 @@ function mergeNumberMaps(previousMap = {}, incomingMap = {}) {
   });
 
   return mergedMap;
+}
+
+function mergeLatestNumberMaps(previousMap = {}, incomingMap = {}) {
+  return {
+    ...previousMap,
+    ...Object.fromEntries(
+      Object.entries(incomingMap).map(([key, value]) => [key, Number(value || 0)])
+    ),
+  };
 }
 
 function mergeTextMaps(previousMap = {}, incomingMap = {}) {
@@ -214,6 +225,10 @@ async function handleProgressPost(request, response) {
     moduleTimeSeconds: mergeNumberMaps(
       previousRecord.moduleTimeSeconds || {},
       payload.moduleTimeSeconds || {}
+    ),
+    moduleCardIndexes: mergeLatestNumberMaps(
+      previousRecord.moduleCardIndexes || {},
+      payload.moduleCardIndexes || {}
     ),
     moduleCompletionDates: mergeTextMaps(
       previousRecord.moduleCompletionDates || {},

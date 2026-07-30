@@ -9,6 +9,7 @@ import { modules } from "./data/words.js";
 const LEARNED_STORAGE_KEY = "spanishLearning.learnedWords";
 const TIME_STORAGE_KEY = "spanishLearning.timeUsedSeconds";
 const MODULE_TIME_STORAGE_KEY = "spanishLearning.moduleTimeSeconds";
+const MODULE_CARD_INDEX_STORAGE_KEY = "spanishLearning.moduleCardIndexes";
 const MODULE_COMPLETION_STORAGE_KEY = "spanishLearning.moduleCompletionDates";
 const STARTED_MODULE_STORAGE_KEY = "spanishLearning.startedModules";
 const CHALLENGE_START_STORAGE_KEY = "spanishLearning.challengeStartDate";
@@ -134,6 +135,9 @@ function App() {
   const [moduleTimeSeconds, setModuleTimeSeconds] = useState(() =>
     readStoredJson(MODULE_TIME_STORAGE_KEY, {})
   );
+  const [moduleCardIndexes, setModuleCardIndexes] = useState(() =>
+    readStoredJson(MODULE_CARD_INDEX_STORAGE_KEY, {})
+  );
   const [moduleCompletionDates, setModuleCompletionDates] = useState(() =>
     readStoredJson(MODULE_COMPLETION_STORAGE_KEY, {})
   );
@@ -176,6 +180,7 @@ function App() {
       learnedWords,
       timeUsedSeconds,
       moduleTimeSeconds,
+      moduleCardIndexes,
       moduleCompletionDates,
       startedModules,
       activityLogs,
@@ -195,6 +200,7 @@ function App() {
     setLearnedWords(savedProgress.learnedWords || {});
     setTimeUsedSeconds(Number(savedProgress.timeUsedSeconds || 0));
     setModuleTimeSeconds(savedProgress.moduleTimeSeconds || {});
+    setModuleCardIndexes(savedProgress.moduleCardIndexes || {});
     setModuleCompletionDates(savedProgress.moduleCompletionDates || {});
     setStartedModules(savedProgress.startedModules || {});
     setActivityLogs(savedProgress.activityLogs || []);
@@ -374,6 +380,16 @@ function App() {
         return updatedModuleTimes;
       });
 
+      setModuleCardIndexes((currentCardIndexes) => {
+        const updatedCardIndexes = { ...currentCardIndexes };
+
+        incompleteModuleIds.forEach((moduleId) => {
+          delete updatedCardIndexes[moduleId];
+        });
+
+        return updatedCardIndexes;
+      });
+
       if (selectedModuleId && incompleteModuleIdSet.has(selectedModuleId)) {
         setCardIndex(0);
         setIsFlipped(false);
@@ -399,6 +415,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(MODULE_TIME_STORAGE_KEY, JSON.stringify(moduleTimeSeconds));
   }, [moduleTimeSeconds]);
+
+  useEffect(() => {
+    localStorage.setItem(MODULE_CARD_INDEX_STORAGE_KEY, JSON.stringify(moduleCardIndexes));
+  }, [moduleCardIndexes]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -459,6 +479,7 @@ function App() {
       learnedWords,
       timeUsedSeconds,
       moduleTimeSeconds,
+      moduleCardIndexes,
       moduleCompletionDates,
       startedModules,
       activityLogs,
@@ -483,6 +504,7 @@ function App() {
     learnedWords,
     timeUsedSeconds,
     moduleTimeSeconds,
+    moduleCardIndexes,
     moduleCompletionDates,
     startedModules,
     activityLogs,
@@ -503,6 +525,7 @@ function App() {
           learnedWords,
           timeUsedSeconds,
           moduleTimeSeconds,
+          moduleCardIndexes,
           moduleCompletionDates,
           startedModules,
           activityLogs,
@@ -532,6 +555,7 @@ function App() {
     learnedWords,
     timeUsedSeconds,
     moduleTimeSeconds,
+    moduleCardIndexes,
     moduleCompletionDates,
     startedModules,
     activityLogs,
@@ -556,14 +580,6 @@ function App() {
       return hasNewCompletionDate ? updatedCompletionDates : currentCompletionDates;
     });
   }, [learnedWords]);
-
-  useEffect(() => {
-    if (selectedModuleId && mode === "module") {
-      setCardIndex(getResumeCardIndex(selectedModuleId));
-      setIsFlipped(false);
-      setHasSeenTranslation(false);
-    }
-  }, [selectedModuleId, learnedWords, mode]);
 
   useEffect(() => {
     const isLearningInModule =
@@ -643,6 +659,37 @@ function App() {
     return firstUnlearnedIndex === -1 ? module.words.length - 1 : firstUnlearnedIndex;
   }
 
+  function getSavedCardIndex(moduleId) {
+    const module = modules.find((item) => item.id === moduleId);
+
+    if (!module) return 0;
+
+    const savedIndex = Number(moduleCardIndexes[moduleId]);
+
+    if (!Number.isFinite(savedIndex)) {
+      return getResumeCardIndex(moduleId);
+    }
+
+    return Math.min(Math.max(savedIndex, 0), module.words.length - 1);
+  }
+
+  function rememberCardPosition(moduleId, index, { syncImmediately = false } = {}) {
+    if (!moduleId) return;
+
+    setModuleCardIndexes((currentIndexes) => {
+      const updatedIndexes = {
+        ...currentIndexes,
+        [moduleId]: index,
+      };
+
+      if (syncImmediately) {
+        syncProgressNow({ moduleCardIndexes: updatedIndexes });
+      }
+
+      return updatedIndexes;
+    });
+  }
+
   function markModuleCompleted(module, completionProgress = "completed") {
     const today = getLocalDateString();
     const completionLog = finishCurrentActivityLog(completionProgress, {
@@ -669,6 +716,7 @@ function App() {
 
   function openModule(moduleId) {
     finishCurrentActivityLog("incomplete");
+    const savedCardIndex = getSavedCardIndex(moduleId);
     lastActivityAtRef.current = Date.now();
     setStartedModules((currentStartedModules) => ({
       ...currentStartedModules,
@@ -676,7 +724,8 @@ function App() {
     }));
     setSelectedModuleId(moduleId);
     setMode("module");
-    setCardIndex(getResumeCardIndex(moduleId));
+    setCardIndex(savedCardIndex);
+    rememberCardPosition(moduleId, savedCardIndex);
     setIsFlipped(false);
     setHasSeenTranslation(false);
     setIsCurrentQuizComplete(false);
@@ -687,6 +736,9 @@ function App() {
   function startQuizForCurrentModule() {
     if (!selectedModule) return;
 
+    rememberCardPosition(selectedModule.id, selectedModule.words.length - 1, {
+      syncImmediately: true,
+    });
     markModuleCompleted(selectedModule, "completed (flashcard)");
     setLearnedWords((currentLearnedWords) => {
       const updatedLearnedWords = { ...currentLearnedWords };
@@ -752,17 +804,24 @@ function App() {
       return;
     }
 
-    setCardIndex((currentIndex) => {
-      const nextIndex = currentIndex + direction;
-      if (nextIndex < 0) return selectedModule.words.length - 1;
-      if (nextIndex >= selectedModule.words.length) return selectedModule.words.length - 1;
-      return nextIndex;
+    const nextIndex = Math.min(
+      Math.max(cardIndex + direction, 0),
+      selectedModule.words.length - 1
+    );
+
+    setCardIndex(nextIndex);
+    rememberCardPosition(selectedModule.id, nextIndex, {
+      syncImmediately: true,
     });
     setIsFlipped(false);
     setHasSeenTranslation(false);
   }
 
   function goHome() {
+    if (selectedModuleId) {
+      rememberCardPosition(selectedModuleId, cardIndex, { syncImmediately: true });
+    }
+
     finishCurrentActivityLog("incomplete");
     setMode("home");
     setSelectedModuleId(null);
