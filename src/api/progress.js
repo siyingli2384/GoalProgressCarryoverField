@@ -20,3 +20,20 @@ export function saveProgress(payload, options = {}) {
     keepalive: Boolean(options.keepalive),
   });
 }
+
+export async function startSession(prolificId, nickname) {
+  const response = await fetch(`${API_BASE_URL}/api/session`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ prolificId, nickname }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not start participant session");
+  }
+
+  return response.json();
+}

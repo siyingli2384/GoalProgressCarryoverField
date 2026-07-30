@@ -32,6 +32,14 @@ function sanitizeParticipantId(value) {
   return String(value || "").trim().slice(0, 120);
 }
 
+function sanitizeNickname(value) {
+  return String(value || "").trim().slice(0, 120);
+}
+
+function createParticipantKey(prolificId, nickname) {
+  return `${prolificId}::${nickname.toLowerCase()}`;
+}
+
 async function loadProgress() {
   try {
     const fileContents = await fs.readFile(DATA_FILE, "utf8");
@@ -83,6 +91,8 @@ function summarizeProgress(record) {
 
   return {
     prolificId: record.prolificId,
+    nickname: record.nickname || "",
+    learnedWords,
     learnedWordCount,
     completedModules,
     timeUsedSeconds: Number(record.timeUsedSeconds || moduleTimeTotalSeconds || 0),
@@ -92,6 +102,21 @@ function summarizeProgress(record) {
     activityLogs: normalizeActivityLogs(record.activityLogs || []),
     challengeStartDate: record.challengeStartDate || "",
     updatedAt: record.updatedAt,
+  };
+}
+
+function createBlankParticipantRecord(prolificId, nickname) {
+  return {
+    prolificId,
+    nickname,
+    learnedWords: {},
+    timeUsedSeconds: 0,
+    moduleTimeSeconds: {},
+    moduleCompletionDates: {},
+    startedModules: {},
+    activityLogs: [],
+    challengeStartDate: "",
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -141,16 +166,19 @@ async function handleProgressPost(request, response) {
   const body = await readRequestBody(request);
   const payload = JSON.parse(body || "{}");
   const prolificId = sanitizeParticipantId(payload.prolificId);
+  const nickname = sanitizeNickname(payload.nickname);
 
-  if (!prolificId) {
-    sendJson(response, 400, { error: "Missing Prolific ID" });
+  if (!prolificId || !nickname) {
+    sendJson(response, 400, { error: "Missing Prolific ID or nickname" });
     return;
   }
 
-  const previousRecord = progressCache[prolificId] || {};
+  const participantKey = createParticipantKey(prolificId, nickname);
+  const previousRecord = progressCache[participantKey] || {};
   const updatedRecord = {
     ...previousRecord,
     prolificId,
+    nickname,
     learnedWords: payload.learnedWords || previousRecord.learnedWords || {},
     timeUsedSeconds: Number(payload.timeUsedSeconds || 0),
     moduleTimeSeconds:
@@ -168,9 +196,33 @@ async function handleProgressPost(request, response) {
     updatedAt: new Date().toISOString(),
   };
 
-  progressCache[prolificId] = updatedRecord;
+  progressCache[participantKey] = updatedRecord;
   await saveProgress();
   sendJson(response, 200, { ok: true, progress: summarizeProgress(updatedRecord) });
+}
+
+async function handleSessionPost(request, response) {
+  const body = await readRequestBody(request);
+  const payload = JSON.parse(body || "{}");
+  const prolificId = sanitizeParticipantId(payload.prolificId);
+  const nickname = sanitizeNickname(payload.nickname);
+
+  if (!prolificId || !nickname) {
+    sendJson(response, 400, { error: "Missing Prolific ID or nickname" });
+    return;
+  }
+
+  const participantKey = createParticipantKey(prolificId, nickname);
+
+  if (!progressCache[participantKey]) {
+    progressCache[participantKey] = createBlankParticipantRecord(prolificId, nickname);
+    await saveProgress();
+  }
+
+  sendJson(response, 200, {
+    ok: true,
+    participant: summarizeProgress(progressCache[participantKey]),
+  });
 }
 
 function renderAdminPage(records, adminKey = "") {
@@ -182,6 +234,7 @@ function renderAdminPage(records, adminKey = "") {
       return `
         <tr>
           <td>${escapeHtml(record.prolificId)}</td>
+          <td>${escapeHtml(record.nickname || "-")}</td>
           <td>${record.learnedWordCount}</td>
           <td>${record.completedModules}</td>
           <td>${minutes}m ${seconds}s</td>
@@ -195,6 +248,7 @@ function renderAdminPage(records, adminKey = "") {
     .flatMap((record) =>
       (record.activityLogs || []).map((log) => ({
         prolificId: record.prolificId,
+        nickname: record.nickname || "",
         ...log,
       }))
     )
@@ -203,6 +257,7 @@ function renderAdminPage(records, adminKey = "") {
       (log) => `
         <tr>
           <td>${escapeHtml(log.prolificId)}</td>
+          <td>${escapeHtml(log.nickname || "-")}</td>
           <td>${escapeHtml(log.date || "-")}</td>
           <td>${escapeHtml(log.timestamps || "-")}</td>
           <td>${escapeHtml(log.module || "-")}</td>
@@ -242,6 +297,7 @@ function renderAdminPage(records, adminKey = "") {
           <thead>
             <tr>
               <th>Prolific ID</th>
+              <th>Nickname</th>
               <th>Words Learned</th>
               <th>Modules Completed</th>
               <th>Active Time</th>
@@ -249,20 +305,21 @@ function renderAdminPage(records, adminKey = "") {
               <th>Last Updated</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="6">No progress has been recorded yet.</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="7">No progress has been recorded yet.</td></tr>'}</tbody>
         </table>
         <h2>Detailed Daily Logs</h2>
         <table>
           <thead>
             <tr>
               <th>Prolific ID</th>
+              <th>Nickname</th>
               <th>Date</th>
               <th>Timestamps</th>
               <th>Module</th>
               <th>Progress</th>
             </tr>
           </thead>
-          <tbody>${detailRows || '<tr><td colspan="5">No detailed activity logs yet.</td></tr>'}</tbody>
+          <tbody>${detailRows || '<tr><td colspan="6">No detailed activity logs yet.</td></tr>'}</tbody>
         </table>
       </body>
     </html>`;
@@ -347,6 +404,11 @@ const server = createServer(async (request, response) => {
 
     if (requestUrl.pathname === "/api/health") {
       sendJson(response, 200, { ok: true, site: SITE_NICKNAME });
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/session" && request.method === "POST") {
+      await handleSessionPost(request, response);
       return;
     }
 

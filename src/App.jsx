@@ -3,7 +3,7 @@ import Flashcard from "./components/Flashcard.jsx";
 import ModuleCard from "./components/ModuleCard.jsx";
 import ProgressBar from "./components/ProgressBar.jsx";
 import Quiz from "./components/Quiz.jsx";
-import { saveProgress } from "./api/progress.js";
+import { saveProgress, startSession } from "./api/progress.js";
 import { modules } from "./data/words.js";
 
 const LEARNED_STORAGE_KEY = "spanishLearning.learnedWords";
@@ -13,6 +13,7 @@ const MODULE_COMPLETION_STORAGE_KEY = "spanishLearning.moduleCompletionDates";
 const STARTED_MODULE_STORAGE_KEY = "spanishLearning.startedModules";
 const CHALLENGE_START_STORAGE_KEY = "spanishLearning.challengeStartDate";
 const PROLIFIC_ID_STORAGE_KEY = "spanishLearning.prolificId";
+const NICKNAME_STORAGE_KEY = "spanishLearning.nickname";
 const RESET_DATES_STORAGE_KEY = "spanishLearning.lastResetDates";
 const ACTIVITY_LOG_STORAGE_KEY = "spanishLearning.activityLogs";
 const INACTIVITY_LIMIT_MS = 30000;
@@ -91,6 +92,17 @@ function getSiteNickname() {
   return import.meta.env.VITE_SITE_NICKNAME || portMap[window.location.port] || "rigid-2";
 }
 
+function getUrlValue(...keys) {
+  const params = new URLSearchParams(window.location.search);
+
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value) return value;
+  }
+
+  return "";
+}
+
 function App() {
   const lastActivityAtRef = useRef(Date.now());
   const lastSyncedPayloadRef = useRef("");
@@ -101,7 +113,14 @@ function App() {
   const [selectedModuleId, setSelectedModuleId] = useState(null);
   const [mode, setMode] = useState("prolific");
   const [prolificId, setProlificId] = useState(() =>
-    localStorage.getItem(PROLIFIC_ID_STORAGE_KEY) || ""
+    getUrlValue("prolificId", "PROLIFIC_PID", "prolific_id") ||
+    localStorage.getItem(PROLIFIC_ID_STORAGE_KEY) ||
+    ""
+  );
+  const [nickname, setNickname] = useState(() =>
+    getUrlValue("nickname", "nickName", "nick_name") ||
+    localStorage.getItem(NICKNAME_STORAGE_KEY) ||
+    ""
   );
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -130,6 +149,7 @@ function App() {
   const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isCurrentQuizComplete, setIsCurrentQuizComplete] = useState(false);
+  const hasAutoStartedSessionRef = useRef(false);
 
   const selectedModule = modules.find((module) => module.id === selectedModuleId);
   const allWords = useMemo(() => modules.flatMap((module) => module.words), []);
@@ -145,11 +165,13 @@ function App() {
 
   function syncProgressNow(overrides = {}) {
     const trimmedProlificId = prolificId.trim();
+    const trimmedNickname = nickname.trim();
 
-    if (!trimmedProlificId) return;
+    if (!trimmedProlificId || !trimmedNickname) return;
 
     const payload = {
       prolificId: trimmedProlificId,
+      nickname: trimmedNickname,
       learnedWords,
       timeUsedSeconds,
       moduleTimeSeconds,
@@ -164,6 +186,39 @@ function App() {
     saveProgress(payload).catch((error) => {
       console.error("Could not sync progress:", error);
     });
+  }
+
+  function applySavedProgress(savedProgress) {
+    if (!savedProgress) return;
+
+    setLearnedWords(savedProgress.learnedWords || {});
+    setTimeUsedSeconds(Number(savedProgress.timeUsedSeconds || 0));
+    setModuleTimeSeconds(savedProgress.moduleTimeSeconds || {});
+    setModuleCompletionDates(savedProgress.moduleCompletionDates || {});
+    setStartedModules(savedProgress.startedModules || {});
+    setActivityLogs(savedProgress.activityLogs || []);
+
+    if (savedProgress.challengeStartDate) {
+      setChallengeStartDate(savedProgress.challengeStartDate);
+      localStorage.setItem(CHALLENGE_START_STORAGE_KEY, savedProgress.challengeStartDate);
+    } else {
+      setChallengeStartDate("");
+      localStorage.removeItem(CHALLENGE_START_STORAGE_KEY);
+    }
+  }
+
+  async function initializeParticipantSession(prolificIdValue, nicknameValue) {
+    const trimmedProlificId = prolificIdValue.trim();
+    const trimmedNickname = nicknameValue.trim();
+
+    if (!trimmedProlificId || !trimmedNickname) return;
+
+    localStorage.setItem(PROLIFIC_ID_STORAGE_KEY, trimmedProlificId);
+    localStorage.setItem(NICKNAME_STORAGE_KEY, trimmedNickname);
+
+    const session = await startSession(trimmedProlificId, trimmedNickname);
+    applySavedProgress(session.participant);
+    setMode(session.participant?.challengeStartDate ? "home" : "challenge");
   }
 
   function createActivityLogFromCurrent(progress = "incomplete") {
@@ -371,12 +426,34 @@ function App() {
   }, [prolificId]);
 
   useEffect(() => {
-    const trimmedProlificId = prolificId.trim();
+    if (nickname.trim()) {
+      localStorage.setItem(NICKNAME_STORAGE_KEY, nickname.trim());
+    }
+  }, [nickname]);
 
-    if (!trimmedProlificId) return undefined;
+  useEffect(() => {
+    const urlProlificId = getUrlValue("prolificId", "PROLIFIC_PID", "prolific_id");
+    const urlNickname = getUrlValue("nickname", "nickName", "nick_name");
+
+    if (hasAutoStartedSessionRef.current || !urlProlificId || !urlNickname) {
+      return;
+    }
+
+    hasAutoStartedSessionRef.current = true;
+    initializeParticipantSession(urlProlificId, urlNickname).catch((error) => {
+      console.error("Could not auto-start participant session:", error);
+    });
+  }, []);
+
+  useEffect(() => {
+    const trimmedProlificId = prolificId.trim();
+    const trimmedNickname = nickname.trim();
+
+    if (!trimmedProlificId || !trimmedNickname) return undefined;
 
     const payload = {
       prolificId: trimmedProlificId,
+      nickname: trimmedNickname,
       learnedWords,
       timeUsedSeconds,
       moduleTimeSeconds,
@@ -399,6 +476,7 @@ function App() {
     return () => window.clearTimeout(syncTimer);
   }, [
     prolificId,
+    nickname,
     learnedWords,
     timeUsedSeconds,
     moduleTimeSeconds,
@@ -411,12 +489,14 @@ function App() {
   useEffect(() => {
     function syncBeforeLeaving() {
       const trimmedProlificId = prolificId.trim();
+      const trimmedNickname = nickname.trim();
 
-      if (!trimmedProlificId) return;
+      if (!trimmedProlificId || !trimmedNickname) return;
 
       saveProgress(
         {
           prolificId: trimmedProlificId,
+          nickname: trimmedNickname,
           learnedWords,
           timeUsedSeconds,
           moduleTimeSeconds,
@@ -444,6 +524,7 @@ function App() {
     };
   }, [
     prolificId,
+    nickname,
     learnedWords,
     timeUsedSeconds,
     moduleTimeSeconds,
@@ -714,15 +795,20 @@ function App() {
     openModule(nextModule.id);
   }
 
-  function submitProlificId(event) {
+  async function submitProlificId(event) {
     event.preventDefault();
 
     const trimmedProlificId = prolificId.trim();
+    const trimmedNickname = nickname.trim();
 
-    if (!trimmedProlificId) return;
+    if (!trimmedProlificId || !trimmedNickname) return;
 
-    localStorage.setItem(PROLIFIC_ID_STORAGE_KEY, trimmedProlificId);
-    setMode("challenge");
+    try {
+      await initializeParticipantSession(trimmedProlificId, trimmedNickname);
+    } catch (error) {
+      console.error("Could not start participant session:", error);
+      setMode("challenge");
+    }
   }
 
   if (mode === "prolific") {
@@ -730,7 +816,7 @@ function App() {
       <main className="app-shell leading-shell">
         <section className="leading-page prolific-page">
           <span className="eyebrow">Spanish Learning</span>
-          <h1 className="leading-title">Enter your Prolific ID</h1>
+          <h1 className="leading-title">Enter your study details</h1>
           <form className="prolific-form" onSubmit={submitProlificId}>
             <label htmlFor="prolific-id">Prolific ID</label>
             <input
@@ -742,10 +828,20 @@ function App() {
               autoComplete="off"
               required
             />
+            <label htmlFor="nickname">Nickname</label>
+            <input
+              id="nickname"
+              name="nickname"
+              type="text"
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              autoComplete="off"
+              required
+            />
             <button
               className="primary-button leading-button"
               type="submit"
-              disabled={!prolificId.trim()}
+              disabled={!prolificId.trim() || !nickname.trim()}
             >
               Continue
             </button>
