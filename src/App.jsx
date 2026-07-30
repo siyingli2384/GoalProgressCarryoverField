@@ -558,6 +558,14 @@ function App() {
   }, [learnedWords]);
 
   useEffect(() => {
+    if (selectedModuleId && mode === "module") {
+      setCardIndex(getResumeCardIndex(selectedModuleId));
+      setIsFlipped(false);
+      setHasSeenTranslation(false);
+    }
+  }, [selectedModuleId, learnedWords, mode]);
+
+  useEffect(() => {
     const isLearningInModule =
       selectedModuleId &&
       (mode === "module" || (mode === "quiz" && !isCurrentQuizComplete));
@@ -623,6 +631,18 @@ function App() {
     return module.words.filter((word) => learnedWords[word.id]).length;
   }
 
+  function getResumeCardIndex(moduleId, learnedWordMap = learnedWords) {
+    const module = modules.find((item) => item.id === moduleId);
+
+    if (!module) return 0;
+
+    const firstUnlearnedIndex = module.words.findIndex(
+      (word) => !learnedWordMap[word.id]
+    );
+
+    return firstUnlearnedIndex === -1 ? module.words.length - 1 : firstUnlearnedIndex;
+  }
+
   function markModuleCompleted(module, completionProgress = "completed") {
     const today = getLocalDateString();
     const completionLog = finishCurrentActivityLog(completionProgress, {
@@ -656,7 +676,7 @@ function App() {
     }));
     setSelectedModuleId(moduleId);
     setMode("module");
-    setCardIndex(0);
+    setCardIndex(getResumeCardIndex(moduleId));
     setIsFlipped(false);
     setHasSeenTranslation(false);
     setIsCurrentQuizComplete(false);
