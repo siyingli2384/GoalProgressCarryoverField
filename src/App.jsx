@@ -201,7 +201,7 @@ function App() {
     const session = await startSession(trimmedProlificId, trimmedNickname);
     applySavedProgress(session.participant);
     setIsSessionReady(true);
-    setMode(session.participant?.challengeStartDate ? "home" : "challenge");
+    setMode("challenge");
   }
 
   function createActivityLogFromCurrent(progress = "incomplete") {
