@@ -53,7 +53,7 @@ function Quiz({
       return;
     }
 
-    setFeedback("Try again");
+    setFeedback("");
   }
 
   function goToNextQuestion() {
@@ -161,11 +161,7 @@ function Quiz({
       <div className="quiz-footer">
         <p
           className={`feedback ${
-            feedback === "Correct"
-              ? "correct"
-              : feedback === "Try again"
-                ? "incorrect"
-                : "neutral"
+            feedback === "Correct" ? "correct" : "neutral"
           }`}
         >
           {feedback || "Choose the best English translation."}
