@@ -975,7 +975,7 @@ function App() {
               setMode("home");
             }}
           >
-            Start your challenge
+            {challengeStartDate ? "Continue your challenge" : "Start your challenge"}
           </button>
         </section>
       </main>
