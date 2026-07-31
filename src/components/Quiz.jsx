@@ -56,12 +56,12 @@ function Quiz({
     setIsAnswerSubmitted(true);
 
     if (selectedAnswer === currentWord.english) {
-      setFeedback("Correct");
+      setFeedback("You are correct");
       setScore((currentScore) => currentScore + 1);
       return;
     }
 
-    setFeedback("");
+    setFeedback("You are incorrect");
   }
 
   function goToNextQuestion() {
@@ -172,7 +172,7 @@ function Quiz({
         {feedback && (
           <p
             className={`feedback ${
-              feedback === "Correct" ? "correct" : "neutral"
+              feedback === "You are correct" ? "correct" : "incorrect"
             }`}
           >
             {feedback}
@@ -192,14 +192,15 @@ function Quiz({
             Show the answer
           </button>
         )}
-        <button
-          className="secondary-button"
-          type="button"
-          onClick={goToNextQuestion}
-          disabled={!isAnswerSubmitted}
-        >
-          {questionIndex === module.words.length - 1 ? "Finish quiz" : "Next question"}
-        </button>
+        {isAnswerSubmitted && (
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={goToNextQuestion}
+          >
+            {questionIndex === module.words.length - 1 ? "Finish quiz" : "Next question"}
+          </button>
+        )}
       </div>
     </section>
   );
