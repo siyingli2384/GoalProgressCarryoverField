@@ -20,6 +20,7 @@ function Quiz({
   const [feedback, setFeedback] = useState("");
   const [score, setScore] = useState(0);
   const [isAnswerShown, setIsAnswerShown] = useState(false);
+  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [quizRun, setQuizRun] = useState(0);
 
@@ -38,16 +39,23 @@ function Quiz({
   );
 
   const options = optionsByQuestion[questionIndex] || [];
-  const isQuestionAnswered = Boolean(selectedAnswer);
+  const hasSelectedAnswer = Boolean(selectedAnswer);
   const isCurrentAnswerCorrect = selectedAnswer === currentWord.english;
   const hasPassed = score >= PASSING_SCORE;
 
   function chooseAnswer(answer) {
-    if (isQuestionAnswered) return;
+    if (isAnswerSubmitted) return;
 
     setSelectedAnswer(answer);
+    setFeedback("");
+  }
 
-    if (answer === currentWord.english) {
+  function submitAnswer() {
+    if (!hasSelectedAnswer || isAnswerSubmitted) return;
+
+    setIsAnswerSubmitted(true);
+
+    if (selectedAnswer === currentWord.english) {
       setFeedback("Correct");
       setScore((currentScore) => currentScore + 1);
       return;
@@ -57,8 +65,8 @@ function Quiz({
   }
 
   function goToNextQuestion() {
-    if (!isQuestionAnswered) {
-      setFeedback("Choose one answer to continue.");
+    if (!isAnswerSubmitted) {
+      setFeedback("Submit your answer to continue.");
       return;
     }
 
@@ -75,6 +83,7 @@ function Quiz({
     setSelectedAnswer("");
     setFeedback("");
     setIsAnswerShown(false);
+    setIsAnswerSubmitted(false);
   }
 
   function retakeQuiz() {
@@ -83,6 +92,7 @@ function Quiz({
     setFeedback("");
     setScore(0);
     setIsAnswerShown(false);
+    setIsAnswerSubmitted(false);
     setIsComplete(false);
     setQuizRun((currentRun) => currentRun + 1);
   }
@@ -150,7 +160,7 @@ function Quiz({
               key={option}
               type="button"
               onClick={() => chooseAnswer(option)}
-              disabled={isQuestionAnswered}
+              disabled={isAnswerSubmitted}
             >
               {option}
             </button>
@@ -166,7 +176,12 @@ function Quiz({
         >
           {feedback || "Choose the best English translation."}
         </p>
-        {isQuestionAnswered && !isCurrentAnswerCorrect && (
+        {hasSelectedAnswer && !isAnswerSubmitted && (
+          <button className="primary-button" type="button" onClick={submitAnswer}>
+            Submit my answer
+          </button>
+        )}
+        {isAnswerSubmitted && !isCurrentAnswerCorrect && (
           <button
             className="secondary-button"
             type="button"
@@ -179,7 +194,7 @@ function Quiz({
           className="secondary-button"
           type="button"
           onClick={goToNextQuestion}
-          disabled={!isQuestionAnswered}
+          disabled={!isAnswerSubmitted}
         >
           {questionIndex === module.words.length - 1 ? "Finish quiz" : "Next question"}
         </button>
