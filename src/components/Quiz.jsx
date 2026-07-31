@@ -183,23 +183,27 @@ function Quiz({
             Submit your answer
           </button>
         )}
-        {isAnswerSubmitted && !isCurrentAnswerCorrect && (
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={() => setIsAnswerShown(true)}
-          >
-            Show the answer
-          </button>
-        )}
         {isAnswerSubmitted && (
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={goToNextQuestion}
-          >
-            {questionIndex === module.words.length - 1 ? "Finish quiz" : "Next question"}
-          </button>
+          <div className="quiz-action-row">
+            {!isCurrentAnswerCorrect && (
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setIsAnswerShown(true)}
+              >
+                Show the answer
+              </button>
+            )}
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={goToNextQuestion}
+            >
+              {questionIndex === module.words.length - 1
+                ? "Finish quiz"
+                : "Next question"}
+            </button>
+          </div>
         )}
       </div>
     </section>

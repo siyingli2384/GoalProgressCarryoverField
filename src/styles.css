@@ -737,6 +737,13 @@ button:disabled {
   text-align: center;
 }
 
+.quiz-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
 .quiz-header h2 {
   margin: 6px 0 0;
   font-size: clamp(2rem, 6vw, 4rem);
