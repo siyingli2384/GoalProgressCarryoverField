@@ -652,6 +652,10 @@ function App() {
       });
     }
 
+    if (completionProgress !== "completed (quiz)") {
+      return;
+    }
+
     setModuleCompletionDates((currentCompletionDates) => {
       if (currentCompletionDates[module.id]) {
         return currentCompletionDates;
@@ -708,17 +712,41 @@ function App() {
   function handleQuizComplete() {
     if (!selectedModule || isCurrentQuizComplete) return;
 
-    const completionLog = finishCurrentActivityLog("completed (quiz)", {
-      syncImmediately: true,
+    markModuleCompleted(selectedModule, "completed (quiz)");
+    setIsCurrentQuizComplete(true);
+  }
+
+  function resetCurrentModuleProgress() {
+    if (!selectedModule) return;
+
+    const moduleId = selectedModule.id;
+    const resetLearnedWords = { ...learnedWords };
+    const resetCompletionDates = {
+      ...moduleCompletionDates,
+      [moduleId]: null,
+    };
+    const resetCardIndexes = {
+      ...moduleCardIndexes,
+      [moduleId]: 0,
+    };
+
+    selectedModule.words.forEach((word) => {
+      resetLearnedWords[word.id] = false;
     });
 
-    if (!completionLog) {
-      appendActivityLog(createInstantActivityLog(selectedModule.id, "completed (quiz)"), {
-        syncImmediately: true,
-      });
-    }
-
-    setIsCurrentQuizComplete(true);
+    setLearnedWords(resetLearnedWords);
+    setModuleCompletionDates(resetCompletionDates);
+    setModuleCardIndexes(resetCardIndexes);
+    syncProgressNow({
+      learnedWords: resetLearnedWords,
+      moduleCompletionDates: resetCompletionDates,
+      moduleCardIndexes: resetCardIndexes,
+    });
+    setCardIndex(0);
+    setIsFlipped(false);
+    setHasSeenTranslation(false);
+    setIsCurrentQuizComplete(false);
+    setMode("module");
   }
 
   function markCurrentWordAsLearned() {
@@ -1219,6 +1247,7 @@ function App() {
           onGoToNextModule={goToNextModule}
           onFinishFinalModule={goHome}
           onQuizComplete={handleQuizComplete}
+          onRelearnModule={resetCurrentModuleProgress}
         />
       ) : (
         <section className="study-panel" aria-label={`${selectedModule.title} flashcards`}>

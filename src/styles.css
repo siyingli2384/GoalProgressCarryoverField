@@ -769,6 +769,17 @@ button:disabled {
   border-color: #d9772f;
 }
 
+.answer-button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.answer-button.correct-answer {
+  border-color: #2f8d78;
+  background: #e7f5ef;
+  box-shadow: 0 0 0 4px rgba(47, 141, 120, 0.18);
+}
+
 .feedback {
   margin: 0;
   color: #ff1f1f;
@@ -780,8 +791,32 @@ button:disabled {
   color: #4f8b36;
 }
 
+.feedback.incorrect {
+  color: #ff1f1f;
+}
+
 .feedback.neutral {
   color: #d08a00;
+}
+
+.quiz-result {
+  color: #4d4640;
+  font-weight: 900;
+}
+
+.quiz-result.passed {
+  color: #4f8b36;
+}
+
+.quiz-result.failed {
+  color: #bc3333;
+}
+
+.quiz-retry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 
 .quiz-complete {

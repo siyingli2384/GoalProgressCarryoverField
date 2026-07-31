@@ -80,7 +80,9 @@ function readRequestBody(request) {
 
 function summarizeProgress(record) {
   const learnedWords = record.learnedWords || {};
-  const moduleCompletionDates = record.moduleCompletionDates || {};
+  const moduleCompletionDates = Object.fromEntries(
+    Object.entries(record.moduleCompletionDates || {}).filter(([, value]) => value)
+  );
   const moduleTimeSeconds = record.moduleTimeSeconds || {};
   const learnedWordCount = Object.values(learnedWords).filter(Boolean).length;
   const completedModules = Object.keys(moduleCompletionDates).length;
@@ -166,10 +168,18 @@ function mergeLatestNumberMaps(previousMap = {}, incomingMap = {}) {
 }
 
 function mergeTextMaps(previousMap = {}, incomingMap = {}) {
-  return {
-    ...previousMap,
-    ...incomingMap,
-  };
+  const mergedMap = { ...previousMap };
+
+  Object.entries(incomingMap).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === "") {
+      delete mergedMap[key];
+      return;
+    }
+
+    mergedMap[key] = value;
+  });
+
+  return mergedMap;
 }
 
 function mergeActivityLogs(previousLogs = [], incomingLogs = []) {
