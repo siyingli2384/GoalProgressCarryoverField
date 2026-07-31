@@ -169,16 +169,18 @@ function Quiz({
       </div>
 
       <div className="quiz-footer">
-        <p
-          className={`feedback ${
-            feedback === "Correct" ? "correct" : "neutral"
-          }`}
-        >
-          {feedback || "Choose the best English translation."}
-        </p>
+        {feedback && (
+          <p
+            className={`feedback ${
+              feedback === "Correct" ? "correct" : "neutral"
+            }`}
+          >
+            {feedback}
+          </p>
+        )}
         {hasSelectedAnswer && !isAnswerSubmitted && (
           <button className="primary-button" type="button" onClick={submitAnswer}>
-            Submit my answer
+            Submit your answer
           </button>
         )}
         {isAnswerSubmitted && !isCurrentAnswerCorrect && (
