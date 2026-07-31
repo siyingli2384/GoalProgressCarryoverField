@@ -991,14 +991,22 @@ function App() {
     );
     const activeDayIndex = Math.max(dateBasedDayIndex, 0);
     const dailyModuleTarget = usesTwoModuleChallenge ? 2 : DAILY_MODULE_TARGET;
+    const completedModuleDates = Object.values(moduleCompletionDates);
 
     const progressDays = Array.from({ length: CHALLENGE_DAYS }, (_, dayIndex) => {
       const dayDate = addDays(challengeStart, dayIndex);
       const completeCount = modules.filter(
         (module) => moduleCompletionDates[module.id] === dayDate
       ).length;
+      const cumulativeCompleteCount = completedModuleDates.filter(
+        (completionDate) =>
+          completionDate >= challengeStart && completionDate <= dayDate
+      ).length;
+      const cumulativeTarget = dailyModuleTarget * (dayIndex + 1);
       const isPastDay = dayDate < today || dayIndex < activeDayIndex;
-      const isSuccessful = completeCount >= dailyModuleTarget;
+      const isSuccessful = isHeadstartSite
+        ? cumulativeCompleteCount >= cumulativeTarget
+        : completeCount >= dailyModuleTarget;
       const isFailed = !isSuccessful && isPastDay;
       const boxStates = Array.from({ length: dailyModuleTarget }, (_, boxIndex) =>
         boxIndex < Math.min(completeCount, dailyModuleTarget) ? "filled" : ""
