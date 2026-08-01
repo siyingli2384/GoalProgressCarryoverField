@@ -513,25 +513,6 @@ function App() {
   ]);
 
   useEffect(() => {
-    setModuleCompletionDates((currentCompletionDates) => {
-      const today = getLocalDateString();
-      const updatedCompletionDates = { ...currentCompletionDates };
-      let hasNewCompletionDate = false;
-
-      modules.forEach((module) => {
-        const isModuleComplete = getLearnedCount(module) === module.words.length;
-
-        if (isModuleComplete && !updatedCompletionDates[module.id]) {
-          updatedCompletionDates[module.id] = today;
-          hasNewCompletionDate = true;
-        }
-      });
-
-      return hasNewCompletionDate ? updatedCompletionDates : currentCompletionDates;
-    });
-  }, [learnedWords]);
-
-  useEffect(() => {
     const isLearningInModule =
       selectedModuleId &&
       (mode === "module" || (mode === "quiz" && !isCurrentQuizComplete));
