@@ -8,7 +8,7 @@ function Flashcard({ word, isFlipped, onPronounce }) {
       )}
       {word.example && (
         <p className="example-sentence">
-          <b>Ejemplo:</b> {isFlipped ? word.example.english : word.example.spanish}
+          <b>Example:</b> {isFlipped ? word.example.english : word.example.spanish}
         </p>
       )}
       {!isFlipped && (
