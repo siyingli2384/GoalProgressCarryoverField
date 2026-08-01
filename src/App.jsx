@@ -1033,7 +1033,8 @@ function App() {
       const cumulativeTarget = dailyModuleTarget * (dayIndex + 1);
       const isPastDay = dayDate < today || dayIndex < activeDayIndex;
       const isSuccessful = isHeadstartSite
-        ? cumulativeCompleteCount >= cumulativeTarget
+        ? completeCount >= dailyModuleTarget ||
+          cumulativeCompleteCount >= cumulativeTarget
         : completeCount >= dailyModuleTarget;
       const isFailed = !isSuccessful && isPastDay;
       const boxStates = Array.from({ length: dailyModuleTarget }, (_, boxIndex) =>
