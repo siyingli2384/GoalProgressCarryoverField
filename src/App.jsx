@@ -133,7 +133,6 @@ function App() {
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isCurrentQuizComplete, setIsCurrentQuizComplete] = useState(false);
   const [isSessionReady, setIsSessionReady] = useState(false);
-  const [isRewardDetailsOpen, setIsRewardDetailsOpen] = useState(false);
 
   const selectedModule = modules.find((module) => module.id === selectedModuleId);
   const allWords = useMemo(() => modules.flatMap((module) => module.words), []);
@@ -1068,7 +1067,6 @@ function App() {
         statusClass,
       };
     });
-    const isChallengeComplete = progressDays.every((day) => day.isSuccessful);
     const rewardAmount = usesTwoModuleChallenge ? "8" : "4";
 
     return (
@@ -1090,13 +1088,6 @@ function App() {
                 <span>Today is Day {activeDayIndex + 1}</span>
               </div>
             </div>
-            <button
-              className="reward-details-button"
-              type="button"
-              onClick={() => setIsRewardDetailsOpen(true)}
-            >
-              Reward Details
-            </button>
             <div
               className={`daily-target-card ${
                 usesTwoModuleChallenge ? "two-module-target" : ""
@@ -1136,36 +1127,6 @@ function App() {
               </p>
             </div>
           </aside>
-          {isRewardDetailsOpen && (
-            <div
-              className="reward-modal-backdrop"
-              role="presentation"
-              onClick={() => setIsRewardDetailsOpen(false)}
-            >
-              <section
-                className="reward-modal"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="reward-details-title"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <button
-                  className="reward-modal-close"
-                  type="button"
-                  aria-label="Close reward details"
-                  onClick={() => setIsRewardDetailsOpen(false)}
-                >
-                  ×
-                </button>
-                <h2 id="reward-details-title">Reward Details</h2>
-                <p>
-                  {isChallengeComplete
-                    ? `Challenge completed. You are eligible for the Prolific bonus of $${rewardAmount}.`
-                    : "Pending Update"}
-                </p>
-              </section>
-            </div>
-          )}
         </section>
 
         <section className="module-grid" aria-label="Learning modules">
