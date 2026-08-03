@@ -989,6 +989,7 @@ button:disabled {
   }
 
   .challenge-page .leading-title {
+    margin-top: 18px;
     font-size: 1.18rem;
   }
 
