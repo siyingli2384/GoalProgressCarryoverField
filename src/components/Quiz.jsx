@@ -6,6 +6,17 @@ function shuffle(items) {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
+function uniqueEnglishOptions(words) {
+  const seenOptions = new Set();
+
+  return words.filter((word) => {
+    if (seenOptions.has(word.english)) return false;
+
+    seenOptions.add(word.english);
+    return true;
+  });
+}
+
 function Quiz({
   module,
   allWords,
@@ -29,7 +40,22 @@ function Quiz({
   const optionsByQuestion = useMemo(
     () =>
       module.words.map((word) => {
-        const distractors = shuffle(allWords.filter((item) => item.id !== word.id))
+        const sameModuleDistractors = shuffle(
+          uniqueEnglishOptions(module.words.filter((item) => item.id !== word.id))
+        );
+        const fallbackDistractors = shuffle(
+          uniqueEnglishOptions(
+            allWords.filter(
+              (item) =>
+                item.id !== word.id &&
+                item.english !== word.english &&
+                !sameModuleDistractors.some(
+                  (distractor) => distractor.english === item.english
+                )
+            )
+          )
+        );
+        const distractors = [...sameModuleDistractors, ...fallbackDistractors]
           .slice(0, 3)
           .map((item) => item.english);
 
