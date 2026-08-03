@@ -908,7 +908,7 @@ function App() {
           <span className="eyebrow">10-Day Challenge</span>
           <h1 className="leading-title">
             Goal Achievement Challenge:
-            <span>Earn Amazon Giftcards</span>
+            <span>Earn a Prolific Bonus</span>
           </h1>
           <div className="copy-card">
             <p>
@@ -961,8 +961,8 @@ function App() {
               this 10-day challenge and{" "}
               <strong>
                 {usesTwoModuleChallenge
-                  ? "receive an Amazon giftcard: $8."
-                  : "receive an Amazon giftcard: $4."}
+                  ? "receive a Prolific bonus of $8."
+                  : "receive a Prolific bonus of $4."}
               </strong>
             </p>
           </div>
@@ -1132,7 +1132,7 @@ function App() {
               </div>
               <p className="progress-note">
                 Once you complete the daily goal of each of the 10 days, you will
-                receive a reward of ${rewardAmount} Amazon giftcard.
+                receive a Prolific bonus of ${rewardAmount}.
               </p>
             </div>
           </aside>
@@ -1160,7 +1160,7 @@ function App() {
                 <h2 id="reward-details-title">Reward Details</h2>
                 <p>
                   {isChallengeComplete
-                    ? `Challenge completed. You are eligible for the $${rewardAmount} Amazon giftcard reward.`
+                    ? `Challenge completed. You are eligible for the Prolific bonus of $${rewardAmount}.`
                     : "Pending Update"}
                 </p>
               </section>
