@@ -56,6 +56,19 @@ button:disabled {
   width: min(920px, 100%);
 }
 
+.challenge-over-page {
+  text-align: center;
+}
+
+.challenge-over-page p {
+  margin: 16px auto 0;
+  max-width: 640px;
+  color: #4d4640;
+  font-size: clamp(1.08rem, 2vw, 1.35rem);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
 .eyebrow,
 .module-number,
 .flashcard-label {

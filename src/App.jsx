@@ -994,13 +994,29 @@ function App() {
   if (mode === "home" || !selectedModule) {
     const today = getLocalDateString();
     const challengeStart = challengeStartDate || today;
+    const rawDayDifference = getDayDifference(challengeStart, today);
+    const isChallengeOver = Boolean(challengeStartDate) && rawDayDifference >= CHALLENGE_DAYS;
     const dateBasedDayIndex = Math.min(
-      Math.max(getDayDifference(challengeStart, today), 0),
+      Math.max(rawDayDifference, 0),
       CHALLENGE_DAYS - 1
     );
     const activeDayIndex = Math.max(dateBasedDayIndex, 0);
     const dailyModuleTarget = usesTwoModuleChallenge ? 2 : DAILY_MODULE_TARGET;
     const completedModuleDates = Object.values(moduleCompletionDates);
+
+    if (isChallengeOver) {
+      return (
+        <main className="app-shell leading-shell">
+          <section className="leading-page challenge-over-page">
+            <span className="eyebrow">Spanish Learning</span>
+            <h1 className="leading-title">The 10-day challenge is over.</h1>
+            <p>
+              The researcher will contact you regarding the reward details.
+            </p>
+          </section>
+        </main>
+      );
+    }
 
     const progressDays = Array.from({ length: CHALLENGE_DAYS }, (_, dayIndex) => {
       const dayDate = addDays(challengeStart, dayIndex);
