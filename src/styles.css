@@ -104,6 +104,7 @@ button:disabled {
 
 .challenge-page .leading-title span {
   display: block;
+  white-space: nowrap;
 }
 
 .challenge-page .leading-button {
@@ -985,6 +986,10 @@ button:disabled {
   .app-shell {
     padding-left: 8px;
     padding-right: 8px;
+  }
+
+  .challenge-page .leading-title {
+    font-size: 1.18rem;
   }
 
   .learning-progress-card {
