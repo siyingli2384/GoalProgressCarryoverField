@@ -906,8 +906,7 @@ function App() {
         <section className="leading-page challenge-page">
           <span className="eyebrow">10-Day Challenge</span>
           <h1 className="leading-title">
-            Goal Achievement Challenge:
-            <span>Earn a Prolific Bonus</span>
+            Join the Goal Achievement Challenge and Win a Bonus Payment
           </h1>
           <div className="copy-card">
             <p>
