@@ -911,7 +911,7 @@ function App() {
           </h1>
           <div className="copy-card">
             <p>
-              You are part of the “10-day challenge” game to win bonus credits if
+              You are part of the “10-day challenge” game to win bonus payment if
               you complete the goal. You have chosen to commit to{" "}
               <strong>
                 {usesTwoModuleChallenge
