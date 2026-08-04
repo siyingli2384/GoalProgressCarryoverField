@@ -19,7 +19,8 @@ const INACTIVITY_LIMIT_MS = 30000;
 const DAILY_MODULE_TARGET = 1;
 const DAILY_VISUAL_BLOCKS = 2;
 const CHALLENGE_DAYS = 10;
-const RESET_TIME_ZONES = ["America/New_York", "America/Los_Angeles"];
+const CHALLENGE_TIME_ZONE = "America/New_York";
+const CHALLENGE_CUTOFF_HOUR = 12;
 
 function readStoredJson(key, fallback) {
   try {
@@ -64,6 +65,54 @@ function getDateStringInTimeZone(timeZone, date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function getTimePartsInTimeZone(timeZone, date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const value = (type) => Number(parts.find((part) => part.type === type)?.value);
+
+  return {
+    year: value("year"),
+    month: value("month"),
+    day: value("day"),
+    hour: value("hour") % 24,
+    minute: value("minute"),
+    second: value("second"),
+  };
+}
+
+function getTimeZoneOffsetMs(timeZone, date) {
+  const parts = getTimePartsInTimeZone(timeZone, date);
+  const timeAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+
+  return timeAsUtc - date.getTime();
+}
+
+function makeDateInTimeZone(timeZone, dateString, hour = 0) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, 0, 0));
+  const firstPass = new Date(utcGuess.getTime() - getTimeZoneOffsetMs(timeZone, utcGuess));
+
+  return new Date(
+    utcGuess.getTime() - getTimeZoneOffsetMs(timeZone, firstPass)
+  );
+}
+
 function addDays(dateString, daysToAdd) {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(year, month - 1, day);
@@ -78,6 +127,64 @@ function getDayDifference(startDateString, endDateString) {
   const endDate = new Date(endYear, endMonth - 1, endDay);
 
   return Math.floor((endDate - startDate) / 86400000);
+}
+
+function getChallengeStartAt(challengeStartValue) {
+  if (!challengeStartValue) return new Date();
+
+  if (challengeStartValue.includes("T")) {
+    const parsedDate = new Date(challengeStartValue);
+    return Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+  }
+
+  return makeDateInTimeZone(CHALLENGE_TIME_ZONE, challengeStartValue, 0);
+}
+
+function getChallengeCutoffAt(challengeStartValue, cutoffIndex = 0) {
+  const startAt = getChallengeStartAt(challengeStartValue);
+  const startDateInEastern = getDateStringInTimeZone(CHALLENGE_TIME_ZONE, startAt);
+  const cutoffDate = addDays(startDateInEastern, cutoffIndex + 1);
+
+  return makeDateInTimeZone(
+    CHALLENGE_TIME_ZONE,
+    cutoffDate,
+    CHALLENGE_CUTOFF_HOUR
+  );
+}
+
+function getChallengeDayIndexForDate(date, challengeStartValue) {
+  for (let dayIndex = 0; dayIndex < CHALLENGE_DAYS; dayIndex += 1) {
+    if (date < getChallengeCutoffAt(challengeStartValue, dayIndex)) {
+      return dayIndex;
+    }
+  }
+
+  return CHALLENGE_DAYS;
+}
+
+function getChallengeDayKeyForDate(date, challengeStartValue) {
+  const dayIndex = getChallengeDayIndexForDate(date, challengeStartValue);
+
+  return dayIndex < CHALLENGE_DAYS ? `day-${dayIndex + 1}` : "after-challenge";
+}
+
+function getCompletionDayIndex(completionValue, challengeStartValue) {
+  if (!completionValue) return -1;
+
+  if (completionValue.startsWith("day-")) {
+    return Number(completionValue.replace("day-", "")) - 1;
+  }
+
+  if (completionValue.includes("T")) {
+    return getChallengeDayIndexForDate(new Date(completionValue), challengeStartValue);
+  }
+
+  const startDate = getDateStringInTimeZone(
+    CHALLENGE_TIME_ZONE,
+    getChallengeStartAt(challengeStartValue)
+  );
+
+  return getDayDifference(startDate, completionValue);
 }
 
 function getSiteNickname() {
@@ -290,18 +397,15 @@ function App() {
   useEffect(() => {
     function resetIncompleteProgressIfNeeded() {
       const savedResetDates = readStoredJson(RESET_DATES_STORAGE_KEY, {});
-      const currentResetDates = RESET_TIME_ZONES.reduce((dates, timeZone) => {
-        dates[timeZone] = getDateStringInTimeZone(timeZone);
-        return dates;
-      }, {});
-      const hasSavedDates = RESET_TIME_ZONES.some(
-        (timeZone) => savedResetDates[timeZone]
-      );
+      const currentResetDates = {
+        [CHALLENGE_TIME_ZONE]: challengeStartDate
+          ? getChallengeDayKeyForDate(new Date(), challengeStartDate)
+          : getDateStringInTimeZone(CHALLENGE_TIME_ZONE),
+      };
+      const hasSavedDates = Boolean(savedResetDates[CHALLENGE_TIME_ZONE]);
       const shouldReset =
         hasSavedDates &&
-        RESET_TIME_ZONES.some(
-          (timeZone) => savedResetDates[timeZone] !== currentResetDates[timeZone]
-        );
+        savedResetDates[CHALLENGE_TIME_ZONE] !== currentResetDates[CHALLENGE_TIME_ZONE];
 
       if (!shouldReset) {
         localStorage.setItem(RESET_DATES_STORAGE_KEY, JSON.stringify(currentResetDates));
@@ -377,7 +481,7 @@ function App() {
     const resetChecker = window.setInterval(resetIncompleteProgressIfNeeded, 60000);
 
     return () => window.clearInterval(resetChecker);
-  }, [selectedModuleId]);
+  }, [selectedModuleId, challengeStartDate]);
 
   useEffect(() => {
     localStorage.setItem(LEARNED_STORAGE_KEY, JSON.stringify(learnedWords));
@@ -621,7 +725,9 @@ function App() {
   }
 
   function markModuleCompleted(module, completionProgress = "completed") {
-    const today = getLocalDateString();
+    const completionDayKey = challengeStartDate
+      ? getChallengeDayKeyForDate(new Date(), challengeStartDate)
+      : getLocalDateString();
     const completionLog = finishCurrentActivityLog(completionProgress, {
       syncImmediately: true,
     });
@@ -643,7 +749,7 @@ function App() {
 
       return {
         ...currentCompletionDates,
-        [module.id]: today,
+        [module.id]: completionDayKey,
       };
     });
   }
@@ -975,9 +1081,9 @@ function App() {
             type="button"
             onClick={() => {
               if (!challengeStartDate) {
-                const startDate = getLocalDateString();
-                localStorage.setItem(CHALLENGE_START_STORAGE_KEY, startDate);
-                setChallengeStartDate(startDate);
+                const startAt = new Date().toISOString();
+                localStorage.setItem(CHALLENGE_START_STORAGE_KEY, startAt);
+                setChallengeStartDate(startAt);
               }
 
               setMode("home");
@@ -991,17 +1097,15 @@ function App() {
   }
 
   if (mode === "home" || !selectedModule) {
-    const today = getLocalDateString();
-    const challengeStart = challengeStartDate || today;
-    const rawDayDifference = getDayDifference(challengeStart, today);
-    const isChallengeOver = Boolean(challengeStartDate) && rawDayDifference >= CHALLENGE_DAYS;
-    const dateBasedDayIndex = Math.min(
-      Math.max(rawDayDifference, 0),
-      CHALLENGE_DAYS - 1
-    );
-    const activeDayIndex = Math.max(dateBasedDayIndex, 0);
+    const now = new Date();
+    const challengeStart = challengeStartDate || now.toISOString();
+    const rawDayIndex = getChallengeDayIndexForDate(now, challengeStart);
+    const isChallengeOver = Boolean(challengeStartDate) && rawDayIndex >= CHALLENGE_DAYS;
+    const activeDayIndex = Math.min(Math.max(rawDayIndex, 0), CHALLENGE_DAYS - 1);
     const dailyModuleTarget = usesTwoModuleChallenge ? 2 : DAILY_MODULE_TARGET;
-    const completedModuleDates = Object.values(moduleCompletionDates);
+    const completedModuleDayIndexes = Object.values(moduleCompletionDates)
+      .map((completionValue) => getCompletionDayIndex(completionValue, challengeStart))
+      .filter((dayIndex) => dayIndex >= 0 && dayIndex < CHALLENGE_DAYS);
 
     if (isChallengeOver) {
       return (
@@ -1018,16 +1122,16 @@ function App() {
     }
 
     const progressDays = Array.from({ length: CHALLENGE_DAYS }, (_, dayIndex) => {
-      const dayDate = addDays(challengeStart, dayIndex);
       const completeCount = modules.filter(
-        (module) => moduleCompletionDates[module.id] === dayDate
+        (module) =>
+          getCompletionDayIndex(moduleCompletionDates[module.id], challengeStart) ===
+          dayIndex
       ).length;
-      const cumulativeCompleteCount = completedModuleDates.filter(
-        (completionDate) =>
-          completionDate >= challengeStart && completionDate <= dayDate
+      const cumulativeCompleteCount = completedModuleDayIndexes.filter(
+        (completionDayIndex) => completionDayIndex <= dayIndex
       ).length;
       const cumulativeTarget = dailyModuleTarget * (dayIndex + 1);
-      const isPastDay = dayDate < today || dayIndex < activeDayIndex;
+      const isPastDay = dayIndex < activeDayIndex;
       const isSuccessful = isHeadstartSite
         ? completeCount >= dailyModuleTarget ||
           cumulativeCompleteCount >= cumulativeTarget
