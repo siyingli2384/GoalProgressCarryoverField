@@ -1191,7 +1191,7 @@ function App() {
                 <strong>Learning Progress</strong>
                 <span>
                   Today is Day {activeDayIndex + 1}{" "}
-                  <span className="cutoff-time">(Cutoff time: 12 PM EST)</span>
+                  <span className="cutoff-time">(Cutoff time: 12pm EST)</span>
                 </span>
               </div>
             </div>

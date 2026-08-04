@@ -288,7 +288,7 @@ button:disabled {
 
 .learning-progress-heading .cutoff-time {
   color: inherit;
-  font-size: 0.86em;
+  font-size: 0.72em;
   font-weight: 400;
   white-space: nowrap;
 }
