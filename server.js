@@ -114,6 +114,8 @@ function summarizeProgress(record) {
     quizAttempts,
     firstAttemptQuizAverage: quizScoreAverages.firstAttemptAverage,
     finalAttemptQuizAverage: quizScoreAverages.finalAttemptAverage,
+    firstAttemptQuizAverageByModule: quizScoreAverages.firstAttemptAverageByModule,
+    finalAttemptQuizAverageByModule: quizScoreAverages.finalAttemptAverageByModule,
     challengeStartDate: record.challengeStartDate || "",
     updatedAt: record.updatedAt,
   };
@@ -346,6 +348,12 @@ function renderAdminPage(records, adminKey = "") {
       const challengeStatus = getChallengeStatus(record);
       const firstAttemptAverage = formatQuizAverage(record.firstAttemptQuizAverage);
       const finalAttemptAverage = formatQuizAverage(record.finalAttemptQuizAverage);
+      const firstAttemptAverageByModule = formatQuizAverageByModule(
+        record.firstAttemptQuizAverageByModule
+      );
+      const finalAttemptAverageByModule = formatQuizAverageByModule(
+        record.finalAttemptQuizAverageByModule
+      );
 
       return `
         <tr>
@@ -356,6 +364,8 @@ function renderAdminPage(records, adminKey = "") {
           <td>${escapeHtml(challengeStatus)}</td>
           <td>${escapeHtml(firstAttemptAverage)}</td>
           <td>${escapeHtml(finalAttemptAverage)}</td>
+          <td>${escapeHtml(firstAttemptAverageByModule)}</td>
+          <td>${escapeHtml(finalAttemptAverageByModule)}</td>
           <td>${escapeHtml(moduleLearningTimes)}</td>
           <td>${escapeHtml(totalLearningTime)}</td>
           <td>${escapeHtml(record.challengeStartDate || "-")}</td>
@@ -423,13 +433,15 @@ function renderAdminPage(records, adminKey = "") {
               <th>10-Day Challenge Status</th>
               <th>Average Quiz Score (First Attempts)</th>
               <th>Average Quiz Score (Final Attempts)</th>
+              <th>Average Quiz Score by Module (First Attempts)</th>
+              <th>Average Quiz Score by Module (Final Attempts)</th>
               <th>Time Spent on Each Module</th>
               <th>Total Learning Time</th>
               <th>Challenge Start</th>
               <th>Last Updated</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="11">No progress has been recorded yet.</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="13">No progress has been recorded yet.</td></tr>'}</tbody>
         </table>
         <h2>Detailed Daily Logs</h2>
         <table>
@@ -498,21 +510,34 @@ function calculateQuizScoreAverages(quizAttempts = []) {
 
   const firstAttemptScores = [];
   const finalAttemptScores = [];
+  const firstAttemptAverageByModule = {};
+  const finalAttemptAverageByModule = {};
 
-  attemptsByModule.forEach((moduleAttempts) => {
+  attemptsByModule.forEach((moduleAttempts, moduleId) => {
     const sortedAttempts = [...moduleAttempts].sort((a, b) =>
       String(a.attemptedAt || "").localeCompare(String(b.attemptedAt || ""))
     );
     const firstAttempt = sortedAttempts[0];
     const finalAttempt = sortedAttempts[sortedAttempts.length - 1];
 
-    if (firstAttempt) firstAttemptScores.push(getQuizPercent(firstAttempt));
-    if (finalAttempt) finalAttemptScores.push(getQuizPercent(finalAttempt));
+    if (firstAttempt) {
+      const firstAttemptPercent = getQuizPercent(firstAttempt);
+      firstAttemptScores.push(firstAttemptPercent);
+      firstAttemptAverageByModule[moduleId] = firstAttemptPercent;
+    }
+
+    if (finalAttempt) {
+      const finalAttemptPercent = getQuizPercent(finalAttempt);
+      finalAttemptScores.push(finalAttemptPercent);
+      finalAttemptAverageByModule[moduleId] = finalAttemptPercent;
+    }
   });
 
   return {
     firstAttemptAverage: average(firstAttemptScores),
     finalAttemptAverage: average(finalAttemptScores),
+    firstAttemptAverageByModule,
+    finalAttemptAverageByModule,
   };
 }
 
@@ -532,6 +557,23 @@ function average(values) {
 
 function formatQuizAverage(value) {
   return typeof value === "number" ? `${value.toFixed(1)}%` : "-";
+}
+
+function formatQuizAverageByModule(quizAverageByModule = {}) {
+  const entries = Object.entries(quizAverageByModule)
+    .filter(([, value]) => typeof value === "number")
+    .sort(([moduleIdA], [moduleIdB]) => {
+      const numberA = Number(String(moduleIdA).replace(/\D/g, ""));
+      const numberB = Number(String(moduleIdB).replace(/\D/g, ""));
+
+      return numberA - numberB;
+    });
+
+  if (!entries.length) return "-";
+
+  return entries
+    .map(([moduleId, value]) => `${formatModuleName(moduleId)}: ${formatQuizAverage(value)}`)
+    .join("; ");
 }
 
 function getChallengeStatus(record) {
