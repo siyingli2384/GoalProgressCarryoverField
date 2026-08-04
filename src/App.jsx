@@ -1137,10 +1137,6 @@ function App() {
     const isChallengeOver = Boolean(challengeStartDate) && rawDayIndex >= CHALLENGE_DAYS;
     const activeDayIndex = Math.min(Math.max(rawDayIndex, 0), CHALLENGE_DAYS - 1);
     const dailyModuleTarget = usesTwoModuleChallenge ? 2 : DAILY_MODULE_TARGET;
-    const completedModuleDayIndexes = Object.values(moduleCompletionDates)
-      .map((completionValue) => getCompletionDayIndex(completionValue, challengeStart))
-      .filter((dayIndex) => dayIndex >= 0 && dayIndex < CHALLENGE_DAYS);
-
     if (isChallengeOver) {
       return (
         <main className="app-shell leading-shell">
@@ -1155,21 +1151,25 @@ function App() {
       );
     }
 
+    let headstartCarryoverModules = 0;
     const progressDays = Array.from({ length: CHALLENGE_DAYS }, (_, dayIndex) => {
       const completeCount = modules.filter(
         (module) =>
           getCompletionDayIndex(moduleCompletionDates[module.id], challengeStart) ===
           dayIndex
       ).length;
-      const cumulativeCompleteCount = completedModuleDayIndexes.filter(
-        (completionDayIndex) => completionDayIndex <= dayIndex
-      ).length;
-      const cumulativeTarget = dailyModuleTarget * (dayIndex + 1);
       const isPastDay = dayIndex < activeDayIndex;
+      const availableHeadstartModules = completeCount + headstartCarryoverModules;
       const isSuccessful = isHeadstartSite
-        ? completeCount >= dailyModuleTarget ||
-          cumulativeCompleteCount >= cumulativeTarget
+        ? availableHeadstartModules >= dailyModuleTarget
         : completeCount >= dailyModuleTarget;
+
+      if (isHeadstartSite) {
+        headstartCarryoverModules = isSuccessful
+          ? availableHeadstartModules - dailyModuleTarget
+          : 0;
+      }
+
       const isFailed = !isSuccessful && isPastDay;
       const boxStates = Array.from({ length: dailyModuleTarget }, (_, boxIndex) =>
         boxIndex < Math.min(completeCount, dailyModuleTarget) ? "filled" : ""

@@ -547,19 +547,18 @@ function getChallengeStatus(record) {
     new Date(),
     record.challengeStartDate
   );
+  let headstartCarryoverModules = 0;
   const dayStatuses = Array.from({ length: CHALLENGE_DAYS }, (_, dayIndex) => {
     const completeCount = completionDayIndexes.filter(
       (completionDayIndex) => completionDayIndex === dayIndex
     ).length;
-    const cumulativeCompleteCount = completionDayIndexes.filter(
-      (completionDayIndex) => completionDayIndex <= dayIndex
-    ).length;
-    const cumulativeTarget = dailyTarget * (dayIndex + 1);
 
     if (isHeadstartSite()) {
-      return (
-        completeCount >= dailyTarget || cumulativeCompleteCount >= cumulativeTarget
-      );
+      const availableModules = completeCount + headstartCarryoverModules;
+      const isSuccessful = availableModules >= dailyTarget;
+      headstartCarryoverModules = isSuccessful ? availableModules - dailyTarget : 0;
+
+      return isSuccessful;
     }
 
     return completeCount >= dailyTarget;
