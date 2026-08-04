@@ -96,6 +96,8 @@ function summarizeProgress(record) {
     (total, value) => total + Number(value || 0),
     0
   );
+  const quizAttempts = normalizeQuizAttempts(record.quizAttempts || []);
+  const quizScoreAverages = calculateQuizScoreAverages(quizAttempts);
 
   return {
     prolificId: record.prolificId,
@@ -109,6 +111,9 @@ function summarizeProgress(record) {
     moduleCompletionDates,
     startedModules: record.startedModules || {},
     activityLogs: normalizeActivityLogs(record.activityLogs || []),
+    quizAttempts,
+    firstAttemptQuizAverage: quizScoreAverages.firstAttemptAverage,
+    finalAttemptQuizAverage: quizScoreAverages.finalAttemptAverage,
     challengeStartDate: record.challengeStartDate || "",
     updatedAt: record.updatedAt,
   };
@@ -125,6 +130,7 @@ function createBlankParticipantRecord(prolificId, nickname) {
     moduleCompletionDates: {},
     startedModules: {},
     activityLogs: [],
+    quizAttempts: [],
     challengeStartDate: "",
     updatedAt: new Date().toISOString(),
   };
@@ -145,6 +151,20 @@ function normalizeActivityLog(log) {
 
 function normalizeActivityLogs(activityLogs) {
   return Array.isArray(activityLogs) ? activityLogs.map(normalizeActivityLog) : [];
+}
+
+function normalizeQuizAttempts(quizAttempts) {
+  return Array.isArray(quizAttempts)
+    ? quizAttempts
+        .filter((attempt) => attempt && typeof attempt === "object")
+        .map((attempt) => ({
+          ...attempt,
+          attemptNumber: Number(attempt.attemptNumber || 1),
+          score: Number(attempt.score || 0),
+          maxScore: Number(attempt.maxScore || 15),
+          passed: Boolean(attempt.passed),
+        }))
+    : [];
 }
 
 function mergeBooleanMaps(previousMap = {}, incomingMap = {}) {
@@ -213,6 +233,30 @@ function mergeActivityLogs(previousLogs = [], incomingLogs = []) {
   );
 }
 
+function mergeQuizAttempts(previousAttempts = [], incomingAttempts = []) {
+  const mergedAttempts = new Map();
+
+  [...normalizeQuizAttempts(previousAttempts), ...normalizeQuizAttempts(incomingAttempts)].forEach(
+    (attempt, index) => {
+      const key =
+        attempt.id ||
+        `${attempt.moduleId || ""}-${attempt.attemptNumber || ""}-${
+          attempt.attemptedAt || ""
+        }-${index}`;
+
+      mergedAttempts.set(key, {
+        ...(mergedAttempts.get(key) || {}),
+        ...attempt,
+        id: attempt.id || key,
+      });
+    }
+  );
+
+  return Array.from(mergedAttempts.values()).sort((a, b) =>
+    String(a.attemptedAt || "").localeCompare(String(b.attemptedAt || ""))
+  );
+}
+
 async function handleProgressPost(request, response) {
   const body = await readRequestBody(request);
   const payload = JSON.parse(body || "{}");
@@ -257,6 +301,9 @@ async function handleProgressPost(request, response) {
     activityLogs: Array.isArray(payload.activityLogs)
       ? mergeActivityLogs(previousRecord.activityLogs || [], payload.activityLogs)
       : normalizeActivityLogs(previousRecord.activityLogs || []),
+    quizAttempts: Array.isArray(payload.quizAttempts)
+      ? mergeQuizAttempts(previousRecord.quizAttempts || [], payload.quizAttempts)
+      : normalizeQuizAttempts(previousRecord.quizAttempts || []),
     challengeStartDate:
       payload.challengeStartDate || previousRecord.challengeStartDate || "",
     updatedAt: new Date().toISOString(),
@@ -297,6 +344,8 @@ function renderAdminPage(records, adminKey = "") {
       const totalLearningTime = formatDuration(record.timeUsedSeconds);
       const moduleLearningTimes = formatModuleLearningTimes(record.moduleTimeSeconds);
       const challengeStatus = getChallengeStatus(record);
+      const firstAttemptAverage = formatQuizAverage(record.firstAttemptQuizAverage);
+      const finalAttemptAverage = formatQuizAverage(record.finalAttemptQuizAverage);
 
       return `
         <tr>
@@ -305,6 +354,8 @@ function renderAdminPage(records, adminKey = "") {
           <td>${record.learnedWordCount}</td>
           <td>${record.completedModules}</td>
           <td>${escapeHtml(challengeStatus)}</td>
+          <td>${escapeHtml(firstAttemptAverage)}</td>
+          <td>${escapeHtml(finalAttemptAverage)}</td>
           <td>${escapeHtml(moduleLearningTimes)}</td>
           <td>${escapeHtml(totalLearningTime)}</td>
           <td>${escapeHtml(record.challengeStartDate || "-")}</td>
@@ -370,13 +421,15 @@ function renderAdminPage(records, adminKey = "") {
               <th>Words Learned</th>
               <th>Number of Modules Completed</th>
               <th>10-Day Challenge Status</th>
+              <th>Average Quiz Score (First Attempts)</th>
+              <th>Average Quiz Score (Final Attempts)</th>
               <th>Time Spent on Each Module</th>
               <th>Total Learning Time</th>
               <th>Challenge Start</th>
               <th>Last Updated</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="9">No progress has been recorded yet.</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="11">No progress has been recorded yet.</td></tr>'}</tbody>
         </table>
         <h2>Detailed Daily Logs</h2>
         <table>
@@ -430,6 +483,55 @@ function formatModuleName(moduleId) {
   const moduleNumber = String(moduleId).replace(/\D/g, "");
 
   return moduleNumber ? `Module ${moduleNumber}` : moduleId;
+}
+
+function calculateQuizScoreAverages(quizAttempts = []) {
+  const attemptsByModule = new Map();
+
+  normalizeQuizAttempts(quizAttempts).forEach((attempt) => {
+    if (!attempt.moduleId) return;
+
+    const moduleAttempts = attemptsByModule.get(attempt.moduleId) || [];
+    moduleAttempts.push(attempt);
+    attemptsByModule.set(attempt.moduleId, moduleAttempts);
+  });
+
+  const firstAttemptScores = [];
+  const finalAttemptScores = [];
+
+  attemptsByModule.forEach((moduleAttempts) => {
+    const sortedAttempts = [...moduleAttempts].sort((a, b) =>
+      String(a.attemptedAt || "").localeCompare(String(b.attemptedAt || ""))
+    );
+    const firstAttempt = sortedAttempts[0];
+    const finalAttempt = sortedAttempts[sortedAttempts.length - 1];
+
+    if (firstAttempt) firstAttemptScores.push(getQuizPercent(firstAttempt));
+    if (finalAttempt) finalAttemptScores.push(getQuizPercent(finalAttempt));
+  });
+
+  return {
+    firstAttemptAverage: average(firstAttemptScores),
+    finalAttemptAverage: average(finalAttemptScores),
+  };
+}
+
+function getQuizPercent(attempt) {
+  const maxScore = Number(attempt.maxScore || 0);
+
+  if (maxScore <= 0) return 0;
+
+  return (Number(attempt.score || 0) / maxScore) * 100;
+}
+
+function average(values) {
+  if (!values.length) return null;
+
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function formatQuizAverage(value) {
+  return typeof value === "number" ? `${value.toFixed(1)}%` : "-";
 }
 
 function getChallengeStatus(record) {

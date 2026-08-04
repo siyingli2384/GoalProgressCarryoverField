@@ -24,6 +24,7 @@ function Quiz({
   onGoToNextModule,
   onFinishFinalModule,
   onQuizComplete,
+  onQuizAttemptComplete,
   onRelearnModule,
 }) {
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -97,7 +98,18 @@ function Quiz({
     }
 
     if (questionIndex === module.words.length - 1) {
-      if (hasPassed) {
+      const finalScore = score;
+      const finalPassed = finalScore >= PASSING_SCORE;
+
+      onQuizAttemptComplete?.({
+        moduleId: module.id,
+        attemptNumber: quizRun + 1,
+        score: finalScore,
+        maxScore: module.words.length,
+        passed: finalPassed,
+      });
+
+      if (finalPassed) {
         onQuizComplete();
       }
 

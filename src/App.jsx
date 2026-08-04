@@ -15,6 +15,7 @@ const STARTED_MODULE_STORAGE_KEY = "spanishLearning.startedModules";
 const CHALLENGE_START_STORAGE_KEY = "spanishLearning.challengeStartDate";
 const RESET_DATES_STORAGE_KEY = "spanishLearning.lastResetDates";
 const ACTIVITY_LOG_STORAGE_KEY = "spanishLearning.activityLogs";
+const QUIZ_ATTEMPTS_STORAGE_KEY = "spanishLearning.quizAttempts";
 const INACTIVITY_LIMIT_MS = 30000;
 const DAILY_MODULE_TARGET = 1;
 const DAILY_VISUAL_BLOCKS = 2;
@@ -233,6 +234,9 @@ function App() {
   const [activityLogs, setActivityLogs] = useState(() =>
     readStoredJson(ACTIVITY_LOG_STORAGE_KEY, [])
   );
+  const [quizAttempts, setQuizAttempts] = useState(() =>
+    readStoredJson(QUIZ_ATTEMPTS_STORAGE_KEY, [])
+  );
   const [challengeStartDate, setChallengeStartDate] = useState(() =>
     localStorage.getItem(CHALLENGE_START_STORAGE_KEY) || ""
   );
@@ -269,6 +273,7 @@ function App() {
       moduleCompletionDates,
       startedModules,
       activityLogs,
+      quizAttempts,
       challengeStartDate,
       ...overrides,
     };
@@ -289,6 +294,7 @@ function App() {
     setModuleCompletionDates(savedProgress.moduleCompletionDates || {});
     setStartedModules(savedProgress.startedModules || {});
     setActivityLogs(savedProgress.activityLogs || []);
+    setQuizAttempts(savedProgress.quizAttempts || []);
 
     if (savedProgress.challengeStartDate) {
       setChallengeStartDate(savedProgress.challengeStartDate);
@@ -521,6 +527,10 @@ function App() {
   }, [activityLogs]);
 
   useEffect(() => {
+    localStorage.setItem(QUIZ_ATTEMPTS_STORAGE_KEY, JSON.stringify(quizAttempts));
+  }, [quizAttempts]);
+
+  useEffect(() => {
     const trimmedProlificId = prolificId.trim();
     const trimmedNickname = nickname.trim();
 
@@ -536,6 +546,7 @@ function App() {
       moduleCompletionDates,
       startedModules,
       activityLogs,
+      quizAttempts,
       challengeStartDate,
     };
     const payloadString = JSON.stringify(payload);
@@ -561,6 +572,7 @@ function App() {
     moduleCompletionDates,
     startedModules,
     activityLogs,
+    quizAttempts,
     challengeStartDate,
   ]);
 
@@ -582,6 +594,7 @@ function App() {
           moduleCompletionDates,
           startedModules,
           activityLogs,
+          quizAttempts,
           challengeStartDate,
         },
         { useBeacon: true, keepalive: true }
@@ -612,6 +625,7 @@ function App() {
     moduleCompletionDates,
     startedModules,
     activityLogs,
+    quizAttempts,
     challengeStartDate,
   ]);
 
@@ -800,6 +814,26 @@ function App() {
 
     markModuleCompleted(selectedModule, "completed (quiz)");
     setIsCurrentQuizComplete(true);
+  }
+
+  function recordQuizAttempt({ moduleId, attemptNumber, score, maxScore, passed }) {
+    const attemptedAt = new Date().toISOString();
+    const attempt = {
+      id: `${moduleId}-${attemptNumber}-${attemptedAt}`,
+      moduleId,
+      moduleTitle: modules.find((module) => module.id === moduleId)?.title || moduleId,
+      attemptNumber,
+      score,
+      maxScore,
+      passed,
+      attemptedAt,
+    };
+
+    setQuizAttempts((currentAttempts) => {
+      const updatedAttempts = [...currentAttempts, attempt];
+      syncProgressNow({ quizAttempts: updatedAttempts });
+      return updatedAttempts;
+    });
   }
 
   function resetCurrentModuleProgress() {
@@ -1313,6 +1347,7 @@ function App() {
           onGoToNextModule={goToNextModule}
           onFinishFinalModule={goHome}
           onQuizComplete={handleQuizComplete}
+          onQuizAttemptComplete={recordQuizAttempt}
           onRelearnModule={resetCurrentModuleProgress}
         />
       ) : (
