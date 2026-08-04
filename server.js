@@ -16,6 +16,12 @@ const DATA_FILE =
     SITE_NICKNAME === "rigid-2" ? "progress.json" : `progress-${SITE_NICKNAME}.json`
   );
 const PUBLIC_DIR = path.join(__dirname, "dist");
+const CHALLENGE_DAYS = 10;
+const DAILY_MODULE_TARGET = 1;
+const TWO_MODULE_SITES = new Set(["rigid-2", "headstart-2", "r2", "h2"]);
+const HEADSTART_SITES = new Set(["headstart-1", "headstart-2", "h1", "h2"]);
+const CHALLENGE_TIME_ZONE = "America/New_York";
+const CHALLENGE_CUTOFF_HOUR = 12;
 
 let progressCache = {};
 let writeQueue = Promise.resolve();
@@ -290,6 +296,7 @@ function renderAdminPage(records, adminKey = "") {
     .map((record) => {
       const totalLearningTime = formatDuration(record.timeUsedSeconds);
       const moduleLearningTimes = formatModuleLearningTimes(record.moduleTimeSeconds);
+      const challengeStatus = getChallengeStatus(record);
 
       return `
         <tr>
@@ -297,6 +304,7 @@ function renderAdminPage(records, adminKey = "") {
           <td>${escapeHtml(record.nickname || "-")}</td>
           <td>${record.learnedWordCount}</td>
           <td>${record.completedModules}</td>
+          <td>${escapeHtml(challengeStatus)}</td>
           <td>${escapeHtml(moduleLearningTimes)}</td>
           <td>${escapeHtml(totalLearningTime)}</td>
           <td>${escapeHtml(record.challengeStartDate || "-")}</td>
@@ -360,14 +368,15 @@ function renderAdminPage(records, adminKey = "") {
               <th>Prolific ID</th>
               <th>Nickname</th>
               <th>Words Learned</th>
-              <th>Modules Completed</th>
+              <th>Number of Modules Completed</th>
+              <th>10-Day Challenge Status</th>
               <th>Time Spent on Each Module</th>
               <th>Total Learning Time</th>
               <th>Challenge Start</th>
               <th>Last Updated</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="8">No progress has been recorded yet.</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="9">No progress has been recorded yet.</td></tr>'}</tbody>
         </table>
         <h2>Detailed Daily Logs</h2>
         <table>
@@ -421,6 +430,189 @@ function formatModuleName(moduleId) {
   const moduleNumber = String(moduleId).replace(/\D/g, "");
 
   return moduleNumber ? `Module ${moduleNumber}` : moduleId;
+}
+
+function getChallengeStatus(record) {
+  if (!record.challengeStartDate) return "Not started";
+
+  const dailyTarget = getDailyModuleTarget();
+  const completionDayIndexes = Object.values(record.moduleCompletionDates || {})
+    .map((completionValue) =>
+      getCompletionDayIndex(completionValue, record.challengeStartDate)
+    )
+    .filter((dayIndex) => dayIndex >= 0 && dayIndex < CHALLENGE_DAYS);
+  const currentDayIndex = getChallengeDayIndexForDate(
+    new Date(),
+    record.challengeStartDate
+  );
+  const dayStatuses = Array.from({ length: CHALLENGE_DAYS }, (_, dayIndex) => {
+    const completeCount = completionDayIndexes.filter(
+      (completionDayIndex) => completionDayIndex === dayIndex
+    ).length;
+    const cumulativeCompleteCount = completionDayIndexes.filter(
+      (completionDayIndex) => completionDayIndex <= dayIndex
+    ).length;
+    const cumulativeTarget = dailyTarget * (dayIndex + 1);
+
+    if (isHeadstartSite()) {
+      return (
+        completeCount >= dailyTarget || cumulativeCompleteCount >= cumulativeTarget
+      );
+    }
+
+    return completeCount >= dailyTarget;
+  });
+
+  if (dayStatuses.every(Boolean)) return "Successful";
+
+  const hasFailedPastDay = dayStatuses.some(
+    (isSuccessful, dayIndex) => !isSuccessful && dayIndex < currentDayIndex
+  );
+
+  return hasFailedPastDay ? "Failed" : "Pending";
+}
+
+function getDailyModuleTarget() {
+  return TWO_MODULE_SITES.has(SITE_NICKNAME.toLowerCase())
+    ? 2
+    : DAILY_MODULE_TARGET;
+}
+
+function isHeadstartSite() {
+  return HEADSTART_SITES.has(SITE_NICKNAME.toLowerCase());
+}
+
+function getDateStringInTimeZone(timeZone, date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  return `${year}-${month}-${day}`;
+}
+
+function getTimePartsInTimeZone(timeZone, date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const value = (type) => Number(parts.find((part) => part.type === type)?.value);
+
+  return {
+    year: value("year"),
+    month: value("month"),
+    day: value("day"),
+    hour: value("hour") % 24,
+    minute: value("minute"),
+    second: value("second"),
+  };
+}
+
+function getTimeZoneOffsetMs(timeZone, date) {
+  const parts = getTimePartsInTimeZone(timeZone, date);
+  const timeAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+
+  return timeAsUtc - date.getTime();
+}
+
+function makeDateInTimeZone(timeZone, dateString, hour = 0) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, 0, 0));
+  const firstPass = new Date(utcGuess.getTime() - getTimeZoneOffsetMs(timeZone, utcGuess));
+
+  return new Date(
+    utcGuess.getTime() - getTimeZoneOffsetMs(timeZone, firstPass)
+  );
+}
+
+function addDays(dateString, daysToAdd) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + daysToAdd);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function getDayDifference(startDateString, endDateString) {
+  const [startYear, startMonth, startDay] = startDateString.split("-").map(Number);
+  const [endYear, endMonth, endDay] = endDateString.split("-").map(Number);
+  const startDate = new Date(startYear, startMonth - 1, startDay);
+  const endDate = new Date(endYear, endMonth - 1, endDay);
+
+  return Math.floor((endDate - startDate) / 86400000);
+}
+
+function getChallengeStartAt(challengeStartValue) {
+  if (!challengeStartValue) return new Date();
+
+  if (challengeStartValue.includes("T")) {
+    const parsedDate = new Date(challengeStartValue);
+    return Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+  }
+
+  return makeDateInTimeZone(CHALLENGE_TIME_ZONE, challengeStartValue, 0);
+}
+
+function getChallengeCutoffAt(challengeStartValue, cutoffIndex = 0) {
+  const startAt = getChallengeStartAt(challengeStartValue);
+  const startDateInEastern = getDateStringInTimeZone(CHALLENGE_TIME_ZONE, startAt);
+  const cutoffDate = addDays(startDateInEastern, cutoffIndex + 1);
+
+  return makeDateInTimeZone(
+    CHALLENGE_TIME_ZONE,
+    cutoffDate,
+    CHALLENGE_CUTOFF_HOUR
+  );
+}
+
+function getChallengeDayIndexForDate(date, challengeStartValue) {
+  for (let dayIndex = 0; dayIndex < CHALLENGE_DAYS; dayIndex += 1) {
+    if (date < getChallengeCutoffAt(challengeStartValue, dayIndex)) {
+      return dayIndex;
+    }
+  }
+
+  return CHALLENGE_DAYS;
+}
+
+function getCompletionDayIndex(completionValue, challengeStartValue) {
+  if (!completionValue) return -1;
+
+  if (completionValue.startsWith("day-")) {
+    return Number(completionValue.replace("day-", "")) - 1;
+  }
+
+  if (completionValue.includes("T")) {
+    return getChallengeDayIndexForDate(new Date(completionValue), challengeStartValue);
+  }
+
+  const startDate = getDateStringInTimeZone(
+    CHALLENGE_TIME_ZONE,
+    getChallengeStartAt(challengeStartValue)
+  );
+
+  return getDayDifference(startDate, completionValue);
 }
 
 function escapeHtml(value) {
