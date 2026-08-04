@@ -286,6 +286,13 @@ button:disabled {
   font-weight: 900;
 }
 
+.learning-progress-heading .cutoff-time {
+  color: #6a625b;
+  font-size: 0.86em;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .daily-target-card {
   border: 3px solid #242329;
   border-radius: 30px;
