@@ -288,8 +288,8 @@ async function handleSessionPost(request, response) {
 function renderAdminPage(records, adminKey = "") {
   const rows = records
     .map((record) => {
-      const minutes = Math.floor(record.timeUsedSeconds / 60);
-      const seconds = String(record.timeUsedSeconds % 60).padStart(2, "0");
+      const totalLearningTime = formatDuration(record.timeUsedSeconds);
+      const moduleLearningTimes = formatModuleLearningTimes(record.moduleTimeSeconds);
 
       return `
         <tr>
@@ -297,7 +297,8 @@ function renderAdminPage(records, adminKey = "") {
           <td>${escapeHtml(record.nickname || "-")}</td>
           <td>${record.learnedWordCount}</td>
           <td>${record.completedModules}</td>
-          <td>${minutes}m ${seconds}s</td>
+          <td>${escapeHtml(moduleLearningTimes)}</td>
+          <td>${escapeHtml(totalLearningTime)}</td>
           <td>${escapeHtml(record.challengeStartDate || "-")}</td>
           <td>${escapeHtml(record.updatedAt || "-")}</td>
         </tr>
@@ -360,12 +361,13 @@ function renderAdminPage(records, adminKey = "") {
               <th>Nickname</th>
               <th>Words Learned</th>
               <th>Modules Completed</th>
-              <th>Active Time</th>
+              <th>Time Spent on Each Module</th>
+              <th>Total Learning Time</th>
               <th>Challenge Start</th>
               <th>Last Updated</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="7">No progress has been recorded yet.</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="8">No progress has been recorded yet.</td></tr>'}</tbody>
         </table>
         <h2>Detailed Daily Logs</h2>
         <table>
@@ -383,6 +385,42 @@ function renderAdminPage(records, adminKey = "") {
         </table>
       </body>
     </html>`;
+}
+
+function formatDuration(totalSeconds) {
+  const safeTotalSeconds = Math.max(0, Math.floor(Number(totalSeconds || 0)));
+  const hours = Math.floor(safeTotalSeconds / 3600);
+  const minutes = Math.floor((safeTotalSeconds % 3600) / 60);
+  const seconds = safeTotalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function formatModuleLearningTimes(moduleTimeSeconds = {}) {
+  const entries = Object.entries(moduleTimeSeconds)
+    .filter(([, seconds]) => Number(seconds || 0) > 0)
+    .sort(([moduleIdA], [moduleIdB]) => {
+      const numberA = Number(String(moduleIdA).replace(/\D/g, ""));
+      const numberB = Number(String(moduleIdB).replace(/\D/g, ""));
+
+      return numberA - numberB;
+    });
+
+  if (!entries.length) return "-";
+
+  return entries
+    .map(([moduleId, seconds]) => `${formatModuleName(moduleId)}: ${formatDuration(seconds)}`)
+    .join("; ");
+}
+
+function formatModuleName(moduleId) {
+  const moduleNumber = String(moduleId).replace(/\D/g, "");
+
+  return moduleNumber ? `Module ${moduleNumber}` : moduleId;
 }
 
 function escapeHtml(value) {
