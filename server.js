@@ -2,12 +2,14 @@ import { createServer } from "node:http";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import pg from "pg";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT || 3001);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const SITE_NICKNAME = process.env.SITE_NICKNAME || "rigid-2";
+const DATABASE_URL = process.env.DATABASE_URL || "";
 const DATA_DIR = path.join(__dirname, "server-data");
 const DATA_FILE =
   process.env.DATA_FILE ||
@@ -27,6 +29,7 @@ const SHARED_CHALLENGE_START_AT =
 
 let progressCache = {};
 let writeQueue = Promise.resolve();
+let dbPool = null;
 
 function sendJson(response, statusCode, data) {
   response.writeHead(statusCode, {
@@ -49,6 +52,39 @@ function createParticipantKey(prolificId, nickname) {
 }
 
 async function loadProgress() {
+  if (DATABASE_URL) {
+    dbPool = new pg.Pool({
+      connectionString: DATABASE_URL,
+      max: Number(process.env.DATABASE_POOL_SIZE || 5),
+      ssl:
+        process.env.DATABASE_SSL === "true"
+          ? { rejectUnauthorized: false }
+          : undefined,
+    });
+
+    await dbPool.query(`
+      CREATE TABLE IF NOT EXISTS participant_progress (
+        site_nickname TEXT NOT NULL,
+        participant_key TEXT NOT NULL,
+        prolific_id TEXT NOT NULL,
+        nickname TEXT NOT NULL,
+        progress JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (site_nickname, participant_key)
+      )
+    `);
+
+    const result = await dbPool.query(
+      `SELECT participant_key, progress FROM participant_progress WHERE site_nickname = $1`,
+      [SITE_NICKNAME]
+    );
+
+    progressCache = Object.fromEntries(
+      result.rows.map((row) => [row.participant_key, row.progress])
+    );
+    return;
+  }
+
   try {
     const fileContents = await fs.readFile(DATA_FILE, "utf8");
     progressCache = JSON.parse(fileContents);
@@ -60,7 +96,47 @@ async function loadProgress() {
   }
 }
 
-function saveProgress() {
+function saveProgress(participantKey, record) {
+  if (dbPool) {
+    const recordsToSave =
+      participantKey && record
+        ? [[participantKey, record]]
+        : Object.entries(progressCache);
+
+    writeQueue = writeQueue.then(async () => {
+      for (const [key, participantRecord] of recordsToSave) {
+        await dbPool.query(
+          `
+            INSERT INTO participant_progress (
+              site_nickname,
+              participant_key,
+              prolific_id,
+              nickname,
+              progress,
+              updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
+            ON CONFLICT (site_nickname, participant_key)
+            DO UPDATE SET
+              prolific_id = EXCLUDED.prolific_id,
+              nickname = EXCLUDED.nickname,
+              progress = EXCLUDED.progress,
+              updated_at = NOW()
+          `,
+          [
+            SITE_NICKNAME,
+            key,
+            participantRecord.prolificId || "",
+            participantRecord.nickname || "",
+            JSON.stringify(participantRecord),
+          ]
+        );
+      }
+    });
+
+    return writeQueue;
+  }
+
   writeQueue = writeQueue.then(async () => {
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.writeFile(DATA_FILE, JSON.stringify(progressCache, null, 2));
@@ -316,7 +392,7 @@ async function handleProgressPost(request, response) {
   };
 
   progressCache[participantKey] = updatedRecord;
-  await saveProgress();
+  await saveProgress(participantKey, updatedRecord);
   sendJson(response, 200, { ok: true, progress: summarizeProgress(updatedRecord) });
 }
 
@@ -335,7 +411,7 @@ async function handleSessionPost(request, response) {
 
   if (!progressCache[participantKey]) {
     progressCache[participantKey] = createBlankParticipantRecord(prolificId, nickname);
-    await saveProgress();
+    await saveProgress(participantKey, progressCache[participantKey]);
   }
 
   sendJson(response, 200, {
@@ -901,5 +977,9 @@ const server = createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`${SITE_NICKNAME} running at http://127.0.0.1:${PORT}`);
   console.log(`Admin dashboard: http://127.0.0.1:${PORT}/admin`);
-  console.log(`Progress data: ${DATA_FILE}`);
+  console.log(
+    DATABASE_URL
+      ? "Progress data: Render Postgres"
+      : `Progress data: ${DATA_FILE}`
+  );
 });
