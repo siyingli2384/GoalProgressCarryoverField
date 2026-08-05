@@ -946,6 +946,21 @@ function isAdminAuthorized(requestUrl) {
   return requestUrl.searchParams.get("key") === ADMIN_PASSWORD;
 }
 
+function isResetAuthorized(requestUrl) {
+  return Boolean(ADMIN_PASSWORD) && requestUrl.searchParams.get("key") === ADMIN_PASSWORD;
+}
+
+async function resetAllProgress() {
+  progressCache = {};
+
+  if (dbPool) {
+    await dbPool.query("DELETE FROM participant_progress");
+    return;
+  }
+
+  await saveProgress();
+}
+
 async function serveStaticFile(request, response) {
   const requestUrl = new URL(request.url, `http://${request.headers.host}`);
   const sourceFiles = {
@@ -1053,6 +1068,34 @@ const server = createServer(async (request, response) => {
         "Cache-Control": "no-store",
       });
       response.end(renderAdminPage(records, requestUrl.searchParams.get("key") || ""));
+      return;
+    }
+
+    if (requestUrl.pathname === "/admin/reset-all-progress") {
+      if (!isResetAuthorized(requestUrl)) {
+        response.writeHead(401, { "Content-Type": "text/html" });
+        response.end(
+          "<h1>Unauthorized</h1><p>This reset endpoint requires ADMIN_PASSWORD to be set and the correct admin key in the URL.</p>"
+        );
+        return;
+      }
+
+      if (requestUrl.searchParams.get("confirm") !== "DELETE") {
+        response.writeHead(400, { "Content-Type": "text/html" });
+        response.end(
+          "<h1>Confirmation Required</h1><p>Add <code>&confirm=DELETE</code> to the URL to wipe all participant progress.</p>"
+        );
+        return;
+      }
+
+      await resetAllProgress();
+      response.writeHead(200, {
+        "Content-Type": "text/html",
+        "Cache-Control": "no-store",
+      });
+      response.end(
+        "<h1>All participant progress has been reset.</h1><p>Open your admin pages to confirm there are 0 participants recorded.</p>"
+      );
       return;
     }
 
