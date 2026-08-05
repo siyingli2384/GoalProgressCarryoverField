@@ -67,6 +67,18 @@ function normalizeProgressCache(recordsByKey = {}) {
   }, {});
 }
 
+function findParticipantRecord(prolificId) {
+  const participantKey = createParticipantKey(prolificId);
+
+  if (progressCache[participantKey]) {
+    return progressCache[participantKey];
+  }
+
+  return Object.values(progressCache).find(
+    (record) => createParticipantKey(record?.prolificId) === participantKey
+  );
+}
+
 async function loadProgress() {
   if (DATABASE_URL) {
     dbPool = new pg.Pool({
@@ -414,7 +426,8 @@ async function handleProgressPost(request, response) {
   }
 
   const participantKey = createParticipantKey(prolificId);
-  const previousRecord = progressCache[participantKey] || {};
+  progressCache = normalizeProgressCache(progressCache);
+  const previousRecord = findParticipantRecord(prolificId) || {};
   const updatedRecord = {
     ...previousRecord,
     prolificId,
@@ -471,6 +484,19 @@ async function handleSessionPost(request, response) {
   }
 
   const participantKey = createParticipantKey(prolificId);
+  progressCache = normalizeProgressCache(progressCache);
+
+  if (!progressCache[participantKey]) {
+    const existingRecord = findParticipantRecord(prolificId);
+
+    if (existingRecord) {
+      progressCache[participantKey] = mergeParticipantRecords(
+        existingRecord,
+        { prolificId, nickname }
+      );
+      await saveProgress(participantKey, progressCache[participantKey]);
+    }
+  }
 
   if (!progressCache[participantKey]) {
     progressCache[participantKey] = createBlankParticipantRecord(prolificId, nickname);
