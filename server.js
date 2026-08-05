@@ -47,8 +47,24 @@ function sanitizeNickname(value) {
   return String(value || "").trim().slice(0, 120);
 }
 
-function createParticipantKey(prolificId, nickname) {
-  return `${prolificId}::${nickname.toLowerCase()}`;
+function createParticipantKey(prolificId) {
+  return sanitizeParticipantId(prolificId).toLowerCase();
+}
+
+function normalizeProgressCache(recordsByKey = {}) {
+  return Object.values(recordsByKey).reduce((normalizedRecords, record) => {
+    if (!record || typeof record !== "object" || !record.prolificId) {
+      return normalizedRecords;
+    }
+
+    const participantKey = createParticipantKey(record.prolificId);
+    normalizedRecords[participantKey] = mergeParticipantRecords(
+      normalizedRecords[participantKey] || {},
+      record
+    );
+
+    return normalizedRecords;
+  }, {});
 }
 
 async function loadProgress() {
@@ -79,15 +95,15 @@ async function loadProgress() {
       [SITE_NICKNAME]
     );
 
-    progressCache = Object.fromEntries(
-      result.rows.map((row) => [row.participant_key, row.progress])
+    progressCache = normalizeProgressCache(
+      Object.fromEntries(result.rows.map((row) => [row.participant_key, row.progress]))
     );
     return;
   }
 
   try {
     const fileContents = await fs.readFile(DATA_FILE, "utf8");
-    progressCache = JSON.parse(fileContents);
+    progressCache = normalizeProgressCache(JSON.parse(fileContents));
   } catch (error) {
     if (error.code !== "ENOENT") {
       console.error("Could not read progress file:", error);
@@ -215,6 +231,53 @@ function createBlankParticipantRecord(prolificId, nickname) {
     quizAttempts: [],
     challengeStartDate: "",
     updatedAt: new Date().toISOString(),
+  };
+}
+
+function mergeParticipantRecords(previousRecord = {}, incomingRecord = {}) {
+  return {
+    ...previousRecord,
+    ...incomingRecord,
+    prolificId: incomingRecord.prolificId || previousRecord.prolificId || "",
+    nickname: previousRecord.nickname || incomingRecord.nickname || "",
+    learnedWords: mergeBooleanMaps(
+      previousRecord.learnedWords || {},
+      incomingRecord.learnedWords || {}
+    ),
+    timeUsedSeconds: Math.max(
+      Number(previousRecord.timeUsedSeconds || 0),
+      Number(incomingRecord.timeUsedSeconds || 0)
+    ),
+    moduleTimeSeconds: mergeNumberMaps(
+      previousRecord.moduleTimeSeconds || {},
+      incomingRecord.moduleTimeSeconds || {}
+    ),
+    moduleCardIndexes: mergeLatestNumberMaps(
+      previousRecord.moduleCardIndexes || {},
+      incomingRecord.moduleCardIndexes || {}
+    ),
+    moduleCompletionDates: mergeTextMaps(
+      previousRecord.moduleCompletionDates || {},
+      incomingRecord.moduleCompletionDates || {}
+    ),
+    startedModules: mergeTextMaps(
+      previousRecord.startedModules || {},
+      incomingRecord.startedModules || {}
+    ),
+    activityLogs: mergeActivityLogs(
+      previousRecord.activityLogs || [],
+      incomingRecord.activityLogs || []
+    ),
+    quizAttempts: mergeQuizAttempts(
+      previousRecord.quizAttempts || [],
+      incomingRecord.quizAttempts || []
+    ),
+    challengeStartDate:
+      incomingRecord.challengeStartDate || previousRecord.challengeStartDate || "",
+    updatedAt:
+      String(incomingRecord.updatedAt || "") > String(previousRecord.updatedAt || "")
+        ? incomingRecord.updatedAt
+        : previousRecord.updatedAt || incomingRecord.updatedAt || "",
   };
 }
 
@@ -350,12 +413,12 @@ async function handleProgressPost(request, response) {
     return;
   }
 
-  const participantKey = createParticipantKey(prolificId, nickname);
+  const participantKey = createParticipantKey(prolificId);
   const previousRecord = progressCache[participantKey] || {};
   const updatedRecord = {
     ...previousRecord,
     prolificId,
-    nickname,
+    nickname: previousRecord.nickname || nickname,
     learnedWords: mergeBooleanMaps(
       previousRecord.learnedWords || {},
       payload.learnedWords || {}
@@ -407,7 +470,7 @@ async function handleSessionPost(request, response) {
     return;
   }
 
-  const participantKey = createParticipantKey(prolificId, nickname);
+  const participantKey = createParticipantKey(prolificId);
 
   if (!progressCache[participantKey]) {
     progressCache[participantKey] = createBlankParticipantRecord(prolificId, nickname);
