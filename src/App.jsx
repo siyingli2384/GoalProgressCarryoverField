@@ -22,6 +22,8 @@ const DAILY_VISUAL_BLOCKS = 2;
 const CHALLENGE_DAYS = 10;
 const CHALLENGE_TIME_ZONE = "America/New_York";
 const CHALLENGE_CUTOFF_HOUR = 12;
+const SHARED_CHALLENGE_START_AT =
+  import.meta.env.VITE_CHALLENGE_START_AT || "2026-08-05T00:00:00-04:00";
 
 function readStoredJson(key, fallback) {
   try {
@@ -297,8 +299,8 @@ function App() {
     setQuizAttempts(savedProgress.quizAttempts || []);
 
     if (savedProgress.challengeStartDate) {
-      setChallengeStartDate(savedProgress.challengeStartDate);
-      localStorage.setItem(CHALLENGE_START_STORAGE_KEY, savedProgress.challengeStartDate);
+      setChallengeStartDate(SHARED_CHALLENGE_START_AT);
+      localStorage.setItem(CHALLENGE_START_STORAGE_KEY, SHARED_CHALLENGE_START_AT);
     } else {
       setChallengeStartDate("");
       localStorage.removeItem(CHALLENGE_START_STORAGE_KEY);
@@ -1115,7 +1117,7 @@ function App() {
             type="button"
             onClick={() => {
               if (!challengeStartDate) {
-                const startAt = new Date().toISOString();
+                const startAt = SHARED_CHALLENGE_START_AT;
                 localStorage.setItem(CHALLENGE_START_STORAGE_KEY, startAt);
                 setChallengeStartDate(startAt);
               }
@@ -1132,7 +1134,8 @@ function App() {
 
   if (mode === "home" || !selectedModule) {
     const now = new Date();
-    const challengeStart = challengeStartDate || now.toISOString();
+    const challengeStart =
+      challengeStartDate || SHARED_CHALLENGE_START_AT || now.toISOString();
     const rawDayIndex = getChallengeDayIndexForDate(now, challengeStart);
     const isChallengeOver = Boolean(challengeStartDate) && rawDayIndex >= CHALLENGE_DAYS;
     const activeDayIndex = Math.min(Math.max(rawDayIndex, 0), CHALLENGE_DAYS - 1);

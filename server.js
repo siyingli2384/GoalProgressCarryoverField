@@ -22,6 +22,8 @@ const TWO_MODULE_SITES = new Set(["rigid-2", "headstart-2", "r2", "h2"]);
 const HEADSTART_SITES = new Set(["headstart-1", "headstart-2", "h1", "h2"]);
 const CHALLENGE_TIME_ZONE = "America/New_York";
 const CHALLENGE_CUTOFF_HOUR = 12;
+const SHARED_CHALLENGE_START_AT =
+  process.env.CHALLENGE_START_AT || "2026-08-05T00:00:00-04:00";
 
 let progressCache = {};
 let writeQueue = Promise.resolve();
@@ -116,7 +118,9 @@ function summarizeProgress(record) {
     finalAttemptQuizAverage: quizScoreAverages.finalAttemptAverage,
     firstAttemptQuizAverageByModule: quizScoreAverages.firstAttemptAverageByModule,
     finalAttemptQuizAverageByModule: quizScoreAverages.finalAttemptAverageByModule,
-    challengeStartDate: record.challengeStartDate || "",
+    challengeStartDate: record.challengeStartDate
+      ? getEffectiveChallengeStartDate(record)
+      : "",
     updatedAt: record.updatedAt,
   };
 }
@@ -579,15 +583,16 @@ function formatQuizAverageByModule(quizAverageByModule = {}) {
 function getChallengeStatus(record) {
   if (!record.challengeStartDate) return "Not started";
 
+  const challengeStartDate = getEffectiveChallengeStartDate(record);
   const dailyTarget = getDailyModuleTarget();
   const completionDayIndexes = Object.values(record.moduleCompletionDates || {})
     .map((completionValue) =>
-      getCompletionDayIndex(completionValue, record.challengeStartDate)
+      getCompletionDayIndex(completionValue, challengeStartDate)
     )
     .filter((dayIndex) => dayIndex >= 0 && dayIndex < CHALLENGE_DAYS);
   const currentDayIndex = getChallengeDayIndexForDate(
     new Date(),
-    record.challengeStartDate
+    challengeStartDate
   );
   let headstartCarryoverModules = 0;
   const dayStatuses = Array.from({ length: CHALLENGE_DAYS }, (_, dayIndex) => {
@@ -613,6 +618,10 @@ function getChallengeStatus(record) {
   );
 
   return hasFailedPastDay ? "Failed" : "Pending";
+}
+
+function getEffectiveChallengeStartDate(record) {
+  return SHARED_CHALLENGE_START_AT || record.challengeStartDate;
 }
 
 function getDailyModuleTarget() {
