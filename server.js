@@ -102,14 +102,7 @@ async function loadProgress() {
       )
     `);
 
-    const result = await dbPool.query(
-      `SELECT participant_key, progress FROM participant_progress WHERE site_nickname = $1`,
-      [SITE_NICKNAME]
-    );
-
-    progressCache = normalizeProgressCache(
-      Object.fromEntries(result.rows.map((row) => [row.participant_key, row.progress]))
-    );
+    await refreshProgressFromDatabase();
     return;
   }
 
@@ -122,6 +115,21 @@ async function loadProgress() {
     }
     progressCache = {};
   }
+}
+
+async function refreshProgressFromDatabase() {
+  if (!dbPool) {
+    return;
+  }
+
+  const result = await dbPool.query(
+    `SELECT participant_key, progress FROM participant_progress WHERE site_nickname = $1`,
+    [SITE_NICKNAME]
+  );
+
+  progressCache = normalizeProgressCache(
+    Object.fromEntries(result.rows.map((row) => [row.participant_key, row.progress]))
+  );
 }
 
 function saveProgress(participantKey, record) {
@@ -426,6 +434,7 @@ async function handleProgressPost(request, response) {
   }
 
   const participantKey = createParticipantKey(prolificId);
+  await refreshProgressFromDatabase();
   progressCache = normalizeProgressCache(progressCache);
   const previousRecord = findParticipantRecord(prolificId) || {};
   const updatedRecord = {
@@ -484,6 +493,7 @@ async function handleSessionPost(request, response) {
   }
 
   const participantKey = createParticipantKey(prolificId);
+  await refreshProgressFromDatabase();
   progressCache = normalizeProgressCache(progressCache);
 
   if (!progressCache[participantKey]) {
@@ -1045,6 +1055,7 @@ const server = createServer(async (request, response) => {
         return;
       }
 
+      await refreshProgressFromDatabase();
       const records = Object.values(progressCache).map(summarizeProgress);
       sendJson(response, 200, { participants: records });
       return;
@@ -1059,6 +1070,7 @@ const server = createServer(async (request, response) => {
         return;
       }
 
+      await refreshProgressFromDatabase();
       const records = Object.values(progressCache)
         .map(summarizeProgress)
         .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
