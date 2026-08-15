@@ -24,6 +24,8 @@ const CHALLENGE_TIME_ZONE = "America/New_York";
 const CHALLENGE_CUTOFF_HOUR = 12;
 const SHARED_CHALLENGE_START_AT =
   import.meta.env.VITE_CHALLENGE_START_AT || "2026-08-05T00:00:00-04:00";
+const LOCK_AFTER_CHALLENGE =
+  import.meta.env.VITE_LOCK_AFTER_CHALLENGE === "true";
 
 function readStoredJson(key, fallback) {
   try {
@@ -1137,7 +1139,8 @@ function App() {
     const challengeStart =
       challengeStartDate || SHARED_CHALLENGE_START_AT || now.toISOString();
     const rawDayIndex = getChallengeDayIndexForDate(now, challengeStart);
-    const isChallengeOver = Boolean(challengeStartDate) && rawDayIndex >= CHALLENGE_DAYS;
+    const isChallengeOver =
+      LOCK_AFTER_CHALLENGE && Boolean(challengeStartDate) && rawDayIndex >= CHALLENGE_DAYS;
     const activeDayIndex = Math.min(Math.max(rawDayIndex, 0), CHALLENGE_DAYS - 1);
     const dailyModuleTarget = usesTwoModuleChallenge ? 2 : DAILY_MODULE_TARGET;
     if (isChallengeOver) {
