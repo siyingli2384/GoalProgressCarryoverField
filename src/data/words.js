@@ -1256,23 +1256,23 @@ const rawModules = [
   {
     id: "module-58",
     title: "Module 58",
-    theme: "Study Skills",
+    theme: "Mail and Packages",
     words: [
-      { id: "m58-1", spanish: "repasar", english: "to review" },
-      { id: "m58-2", spanish: "hacer practica", english: "to practice" },
-      { id: "m58-3", spanish: "memorizar", english: "to memorize" },
-      { id: "m58-4", spanish: "escoger", english: "to choose" },
-      { id: "m58-5", spanish: "marcar", english: "to mark" },
-      { id: "m58-6", spanish: "subrayar", english: "to underline" },
-      { id: "m58-7", spanish: "cuaderno", english: "notebook" },
-      { id: "m58-8", spanish: "ficha", english: "study card" },
-      { id: "m58-9", spanish: "definicion", english: "definition" },
-      { id: "m58-10", spanish: "significado", english: "meaning" },
-      { id: "m58-11", spanish: "pronunciacion", english: "pronunciation" },
-      { id: "m58-12", spanish: "error", english: "mistake" },
-      { id: "m58-13", spanish: "intento", english: "attempt" },
-      { id: "m58-14", spanish: "avance", english: "progress" },
-      { id: "m58-15", spanish: "meta diaria", english: "daily goal" },
+      { id: "m58-1", spanish: "oficina postal", english: "post office" },
+      { id: "m58-2", spanish: "carta", english: "letter" },
+      { id: "m58-3", spanish: "tarjeta postal", english: "postcard" },
+      { id: "m58-4", spanish: "sello", english: "stamp" },
+      { id: "m58-5", spanish: "buzon", english: "mailbox" },
+      { id: "m58-6", spanish: "cartero", english: "mail carrier" },
+      { id: "m58-7", spanish: "servicio postal", english: "postal service" },
+      { id: "m58-8", spanish: "fila postal", english: "post office line" },
+      { id: "m58-9", spanish: "direccion postal", english: "mailing address" },
+      { id: "m58-10", spanish: "codigo postal", english: "zip code" },
+      { id: "m58-11", spanish: "destinatario", english: "recipient" },
+      { id: "m58-12", spanish: "remitente", english: "sender" },
+      { id: "m58-13", spanish: "entrega", english: "delivery" },
+      { id: "m58-14", spanish: "recibo postal", english: "postal receipt" },
+      { id: "m58-15", spanish: "numero de seguimiento", english: "tracking number" },
     ],
   },
   {
@@ -1300,23 +1300,23 @@ const rawModules = [
   {
     id: "module-60",
     title: "Module 60",
-    theme: "Everyday Review",
+    theme: "Community Events",
     words: [
-      { id: "m60-1", spanish: "algo", english: "something" },
-      { id: "m60-2", spanish: "nada", english: "nothing" },
-      { id: "m60-3", spanish: "alguien", english: "someone" },
-      { id: "m60-4", spanish: "nadie", english: "nobody" },
-      { id: "m60-5", spanish: "cada vez", english: "every time" },
-      { id: "m60-6", spanish: "jamas", english: "never" },
-      { id: "m60-7", spanish: "a veces", english: "sometimes" },
-      { id: "m60-8", spanish: "casi", english: "almost" },
-      { id: "m60-9", spanish: "ademas", english: "also" },
-      { id: "m60-10", spanish: "tampoco", english: "neither" },
-      { id: "m60-11", spanish: "en este lugar", english: "in this place" },
-      { id: "m60-12", spanish: "en ese lugar", english: "in that place" },
-      { id: "m60-13", spanish: "todavia", english: "still" },
-      { id: "m60-14", spanish: "ya", english: "already" },
-      { id: "m60-15", spanish: "dentro de poco", english: "soon" },
+      { id: "m60-1", spanish: "evento", english: "event" },
+      { id: "m60-2", spanish: "fiesta comunitaria", english: "community party" },
+      { id: "m60-3", spanish: "reunion vecinal", english: "neighborhood meeting" },
+      { id: "m60-4", spanish: "asistente", english: "attendee" },
+      { id: "m60-5", spanish: "anuncio", english: "announcement" },
+      { id: "m60-6", spanish: "voluntario", english: "volunteer" },
+      { id: "m60-7", spanish: "vecindario", english: "neighborhood" },
+      { id: "m60-8", spanish: "celebracion", english: "celebration" },
+      { id: "m60-9", spanish: "horario del evento", english: "event schedule" },
+      { id: "m60-10", spanish: "lugar del evento", english: "event location" },
+      { id: "m60-11", spanish: "lista de invitados", english: "guest list" },
+      { id: "m60-12", spanish: "organizador", english: "organizer" },
+      { id: "m60-13", spanish: "publico", english: "audience" },
+      { id: "m60-14", spanish: "programa del evento", english: "event program" },
+      { id: "m60-15", spanish: "hora de inicio", english: "start time" },
     ],
   },
 ];
@@ -2731,6 +2731,55 @@ function makeExample(word, moduleIndex, wordIndex, theme) {
       preguntar: { spanish: "Necesito preguntar donde esta la salida.", english: "I need to ask where the exit is." },
     };
     return communicationExamples[word.spanish];
+  }
+
+  if (themeKey.includes("restaurant") && word.spanish === "la cuenta") {
+    return {
+      spanish: "Despues de cenar, pido la cuenta al camarero.",
+      english: "After dinner, I ask the waiter for the check.",
+    };
+  }
+
+  if (themeKey.includes("mail")) {
+    const mailExamples = {
+      "oficina postal": { spanish: "Voy a la oficina postal para mandar una carta.", english: "I go to the post office to send a letter." },
+      carta: { spanish: "Escribo una carta corta a mi abuela.", english: "I write a short letter to my grandmother." },
+      "tarjeta postal": { spanish: "Compro una tarjeta postal durante el viaje.", english: "I buy a postcard during the trip." },
+      sello: { spanish: "Pongo un sello en la esquina del sobre.", english: "I put a stamp on the corner of the envelope." },
+      buzon: { spanish: "Dejo la carta en el buzon antes de ir al trabajo.", english: "I leave the letter in the mailbox before going to work." },
+      cartero: { spanish: "El cartero trae una carta por la manana.", english: "The mail carrier brings a letter in the morning." },
+      "servicio postal": { spanish: "Uso el servicio postal para mandar documentos.", english: "I use the postal service to send documents." },
+      "fila postal": { spanish: "Espero en la fila postal para comprar sellos.", english: "I wait in the post office line to buy stamps." },
+      "direccion postal": { spanish: "Escribo la direccion postal con letra clara.", english: "I write the mailing address clearly." },
+      "codigo postal": { spanish: "Reviso el codigo postal antes de enviar la carta.", english: "I check the zip code before sending the letter." },
+      destinatario: { spanish: "El destinatario vive en otro estado.", english: "The recipient lives in another state." },
+      remitente: { spanish: "El remitente escribe su nombre atras.", english: "The sender writes their name on the back." },
+      entrega: { spanish: "La entrega llega el viernes por la tarde.", english: "The delivery arrives on Friday afternoon." },
+      "recibo postal": { spanish: "Guardo el recibo postal despues de pagar.", english: "I keep the postal receipt after paying." },
+      "numero de seguimiento": { spanish: "Uso el numero de seguimiento para ver donde esta la carta.", english: "I use the tracking number to see where the letter is." },
+    };
+    return mailExamples[word.spanish];
+  }
+
+  if (themeKey.includes("community")) {
+    const communityExamples = {
+      evento: { spanish: "El evento empieza despues del almuerzo.", english: "The event starts after lunch." },
+      "fiesta comunitaria": { spanish: "La fiesta comunitaria tiene comida y musica.", english: "The community party has food and music." },
+      "reunion vecinal": { spanish: "En la reunion vecinal hablamos sobre la calle.", english: "At the neighborhood meeting, we talk about the street." },
+      asistente: { spanish: "Cada asistente recibe una etiqueta con su nombre.", english: "Each attendee receives a name tag." },
+      anuncio: { spanish: "Leo el anuncio en la puerta del centro.", english: "I read the announcement on the center door." },
+      voluntario: { spanish: "Un voluntario ayuda a las personas a encontrar sus asientos.", english: "A volunteer helps people find their seats." },
+      vecindario: { spanish: "El vecindario organiza una limpieza el sabado.", english: "The neighborhood organizes a cleanup on Saturday." },
+      celebracion: { spanish: "La celebracion termina con una foto de grupo.", english: "The celebration ends with a group photo." },
+      "horario del evento": { spanish: "Miro el horario del evento para no perder la charla.", english: "I look at the event schedule so I do not miss the talk." },
+      "lugar del evento": { spanish: "El lugar del evento esta cerca de la biblioteca.", english: "The event location is near the library." },
+      "lista de invitados": { spanish: "La organizadora revisa la lista de invitados en la entrada.", english: "The organizer checks the guest list at the entrance." },
+      organizador: { spanish: "El organizador explica el plan antes de empezar.", english: "The organizer explains the plan before starting." },
+      publico: { spanish: "El publico escucha con atencion durante la presentacion.", english: "The audience listens carefully during the presentation." },
+      "programa del evento": { spanish: "El programa del evento muestra las actividades de la tarde.", english: "The event program shows the afternoon activities." },
+      "hora de inicio": { spanish: "Confirmo la hora de inicio antes de salir de casa.", english: "I confirm the start time before leaving home." },
+    };
+    return communityExamples[word.spanish];
   }
 
   if (themeKey.includes("connectors")) {
