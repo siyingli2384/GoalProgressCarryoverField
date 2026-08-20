@@ -195,6 +195,17 @@ button:disabled {
   outline: none;
 }
 
+.form-help {
+  margin: -4px 0 4px;
+  color: #6f665e;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.form-help-error {
+  color: #d72626;
+}
+
 .prolific-form button:disabled {
   cursor: not-allowed;
   opacity: 0.55;

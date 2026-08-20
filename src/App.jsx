@@ -22,6 +22,8 @@ const DAILY_VISUAL_BLOCKS = 2;
 const CHALLENGE_DAYS = 10;
 const CHALLENGE_TIME_ZONE = "America/New_York";
 const CHALLENGE_CUTOFF_HOUR = 12;
+const PROLIFIC_ID_MIN_LENGTH = 22;
+const PROLIFIC_ID_MAX_LENGTH = 26;
 const SHARED_CHALLENGE_START_AT =
   import.meta.env.VITE_CHALLENGE_START_AT || "2026-08-05T00:00:00-04:00";
 const LOCK_AFTER_CHALLENGE =
@@ -251,6 +253,13 @@ function App() {
 
   const selectedModule = modules.find((module) => module.id === selectedModuleId);
   const allWords = useMemo(() => modules.flatMap((module) => module.words), []);
+  const trimmedProlificId = prolificId.trim();
+  const trimmedNickname = nickname.trim();
+  const isProlificIdLengthValid =
+    trimmedProlificId.length >= PROLIFIC_ID_MIN_LENGTH &&
+    trimmedProlificId.length <= PROLIFIC_ID_MAX_LENGTH;
+  const shouldShowProlificIdLengthError =
+    trimmedProlificId.length > 0 && !isProlificIdLengthValid;
 
   function getModuleLogName(moduleId, progress = "active") {
     const module = modules.find((item) => item.id === moduleId);
@@ -262,9 +271,6 @@ function App() {
   }
 
   function syncProgressNow(overrides = {}) {
-    const trimmedProlificId = prolificId.trim();
-    const trimmedNickname = nickname.trim();
-
     if (!trimmedProlificId || !trimmedNickname || !isSessionReady) return;
 
     const payload = {
@@ -535,9 +541,6 @@ function App() {
   }, [quizAttempts]);
 
   useEffect(() => {
-    const trimmedProlificId = prolificId.trim();
-    const trimmedNickname = nickname.trim();
-
     if (!trimmedProlificId || !trimmedNickname || !isSessionReady) return undefined;
 
     const payload = {
@@ -983,10 +986,7 @@ function App() {
   async function submitProlificId(event) {
     event.preventDefault();
 
-    const trimmedProlificId = prolificId.trim();
-    const trimmedNickname = nickname.trim();
-
-    if (!trimmedProlificId || !trimmedNickname) return;
+    if (!trimmedProlificId || !trimmedNickname || !isProlificIdLengthValid) return;
 
     try {
       await initializeParticipantSession(trimmedProlificId, trimmedNickname);
@@ -1017,8 +1017,20 @@ function App() {
               autoComplete="new-password"
               data-lpignore="true"
               data-form-type="other"
+              minLength={PROLIFIC_ID_MIN_LENGTH}
+              maxLength={PROLIFIC_ID_MAX_LENGTH}
+              aria-describedby="prolific-id-help"
+              aria-invalid={shouldShowProlificIdLengthError}
               required
             />
+            <p
+              id="prolific-id-help"
+              className={`form-help ${
+                shouldShowProlificIdLengthError ? "form-help-error" : ""
+              }`}
+            >
+              Prolific ID must be 22 to 26 characters long.
+            </p>
             <label htmlFor="nickname">Nickname</label>
             <input
               id="nickname"
@@ -1034,7 +1046,7 @@ function App() {
             <button
               className="primary-button leading-button"
               type="submit"
-              disabled={!prolificId.trim() || !nickname.trim()}
+              disabled={!trimmedProlificId || !trimmedNickname || !isProlificIdLengthValid}
             >
               Continue
             </button>
