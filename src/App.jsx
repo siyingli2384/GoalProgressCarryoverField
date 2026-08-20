@@ -428,8 +428,12 @@ function App() {
         return;
       }
 
-      const savedLearnedWords = readStoredJson(LEARNED_STORAGE_KEY, {});
-      const savedCompletionDates = readStoredJson(MODULE_COMPLETION_STORAGE_KEY, {});
+      const savedLearnedWords = learnedWords;
+      const savedCompletionDates = moduleCompletionDates;
+      const resetLearnedWordsForSync = {};
+      const resetCompletionDatesForSync = {};
+      const resetStartedModulesForSync = {};
+      const resetCardIndexesForSync = {};
       const incompleteModuleIds = modules
         .filter((module) => {
           const isComplete =
@@ -440,6 +444,18 @@ function App() {
         })
         .map((module) => module.id);
       const incompleteModuleIdSet = new Set(incompleteModuleIds);
+
+      modules.forEach((module) => {
+        if (!incompleteModuleIdSet.has(module.id)) return;
+
+        resetCompletionDatesForSync[module.id] = null;
+        resetStartedModulesForSync[module.id] = null;
+        resetCardIndexesForSync[module.id] = 0;
+
+        module.words.forEach((word) => {
+          resetLearnedWordsForSync[word.id] = false;
+        });
+      });
 
       setLearnedWords((currentLearnedWords) => {
         const updatedLearnedWords = { ...currentLearnedWords };
@@ -491,13 +507,25 @@ function App() {
       }
 
       localStorage.setItem(RESET_DATES_STORAGE_KEY, JSON.stringify(currentResetDates));
+      syncProgressNow({
+        learnedWords: resetLearnedWordsForSync,
+        moduleCompletionDates: resetCompletionDatesForSync,
+        startedModules: resetStartedModulesForSync,
+        moduleCardIndexes: resetCardIndexesForSync,
+      });
     }
 
     resetIncompleteProgressIfNeeded();
     const resetChecker = window.setInterval(resetIncompleteProgressIfNeeded, 60000);
 
     return () => window.clearInterval(resetChecker);
-  }, [selectedModuleId, challengeStartDate]);
+  }, [
+    selectedModuleId,
+    challengeStartDate,
+    isSessionReady,
+    learnedWords,
+    moduleCompletionDates,
+  ]);
 
   useEffect(() => {
     localStorage.setItem(LEARNED_STORAGE_KEY, JSON.stringify(learnedWords));
@@ -764,14 +792,13 @@ function App() {
     }
 
     setModuleCompletionDates((currentCompletionDates) => {
-      if (currentCompletionDates[module.id]) {
-        return currentCompletionDates;
-      }
-
-      return {
+      const updatedCompletionDates = {
         ...currentCompletionDates,
         [module.id]: completionDayKey,
       };
+
+      syncProgressNow({ moduleCompletionDates: updatedCompletionDates });
+      return updatedCompletionDates;
     });
   }
 
