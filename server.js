@@ -25,7 +25,7 @@ const HEADSTART_SITES = new Set(["headstart-1", "headstart-2", "h1", "h2"]);
 const CHALLENGE_TIME_ZONE = "America/New_York";
 const CHALLENGE_CUTOFF_HOUR = 12;
 const SHARED_CHALLENGE_START_AT =
-  process.env.CHALLENGE_START_AT || "2026-08-05T00:00:00-04:00";
+  process.env.CHALLENGE_START_AT || "2026-08-21T12:00:00-04:00";
 
 let progressCache = {};
 let writeQueue = Promise.resolve();
