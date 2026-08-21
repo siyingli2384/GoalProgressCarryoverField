@@ -28,6 +28,28 @@ const SHARED_CHALLENGE_START_AT =
   import.meta.env.VITE_CHALLENGE_START_AT || "2026-08-21T12:00:00-04:00";
 const LOCK_AFTER_CHALLENGE =
   import.meta.env.VITE_LOCK_AFTER_CHALLENGE === "true";
+const LOCAL_PROGRESS_STORAGE_KEYS = [
+  LEARNED_STORAGE_KEY,
+  TIME_STORAGE_KEY,
+  MODULE_TIME_STORAGE_KEY,
+  MODULE_CARD_INDEX_STORAGE_KEY,
+  MODULE_COMPLETION_STORAGE_KEY,
+  STARTED_MODULE_STORAGE_KEY,
+  RESET_DATES_STORAGE_KEY,
+  ACTIVITY_LOG_STORAGE_KEY,
+  QUIZ_ATTEMPTS_STORAGE_KEY,
+];
+
+function resetLocalProgressForNewChallenge() {
+  const storedChallengeStart = localStorage.getItem(CHALLENGE_START_STORAGE_KEY);
+
+  if (!storedChallengeStart || storedChallengeStart === SHARED_CHALLENGE_START_AT) {
+    return;
+  }
+
+  LOCAL_PROGRESS_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+  localStorage.removeItem(CHALLENGE_START_STORAGE_KEY);
+}
 
 function readStoredJson(key, fallback) {
   try {
@@ -206,6 +228,8 @@ function getSiteNickname() {
 }
 
 function App() {
+  resetLocalProgressForNewChallenge();
+
   const lastActivityAtRef = useRef(Date.now());
   const lastSyncedPayloadRef = useRef("");
   const currentLogRef = useRef(null);
